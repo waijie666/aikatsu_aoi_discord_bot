@@ -28,7 +28,7 @@ load_dotenv(find_dotenv())
 API_KEY= os.environ.get('API_KEY')
 
 command_prefix='!!!'
-bot = commands.Bot(command_prefix=command_prefix)
+bot = commands.Bot(command_prefix=command_prefix, case_insensitive=True)
 bot.first_startup = False
 scheduler = AsyncIOScheduler(event_loop=bot.loop, timezone=pytz.timezone('Asia/Tokyo'))
 

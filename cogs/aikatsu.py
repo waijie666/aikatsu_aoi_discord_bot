@@ -80,7 +80,7 @@ class AikatsuCog:
         embed.set_footer(text='Provider: aikatsup.com')
         await ctx.send(embed=embed)
  
-    @commands.group()
+    @commands.group(case_insensitive=True)
     async def aikatsup(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send('Invalid subcommands. Subcommands are `info` `subs` `tag` `random`.')
@@ -177,7 +177,7 @@ class AikatsuCog:
                 card_list.append(random.choice(self.PR_dict_list+self.PRplus_preawakened_dict_list))
         return card_list
 
-    @commands.group()
+    @commands.group(case_insensitive=True)
     async def photokatsu(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send('Invalid subcommands. Subcommands are `random` `id` `gacha`')
