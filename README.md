@@ -1,6 +1,4 @@
-# discordbot-aikatsup-search
-
-A discord bot search an Aikatsu image and write its url on the text channel.
+# aikatsu_aoi_discord_bot
 
 ## Requirement
 * Python 3.7
