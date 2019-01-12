@@ -33,7 +33,7 @@ API_KEY = os.environ.get("API_KEY")
 command_prefix = "!!!"
 bot = commands.Bot(command_prefix=command_prefix, case_insensitive=True)
 bot.first_startup = False
-scheduler = AsyncIOScheduler(event_loop=bot.loop, timezone=pytz.timezone("Asia/Tokyo"))
+bot.apscheduler = AsyncIOScheduler(event_loop=bot.loop, timezone=pytz.timezone("Asia/Tokyo"))
 
 cogs_dir = "cogs"
 
@@ -53,7 +53,7 @@ async def on_ready():
     await change_client_presence()
     if bot.first_startup is False:
         bot.clientsession = aiohttp.ClientSession()
-        scheduler.start()
+        bot.apscheduler.start()
         bot.first_startup = True
 
 
@@ -71,7 +71,7 @@ async def list_extension(ctx):
     await ctx.send([*bot.extensions])
 
 
-scheduler.add_job(change_client_presence, trigger="cron", minute="*/5")
+bot.apscheduler.add_job(change_client_presence, trigger="cron", minute="*/5")
 
 if __name__ == "__main__":
     for extension in [
