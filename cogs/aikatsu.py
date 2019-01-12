@@ -301,7 +301,7 @@ class AikatsuCog:
             url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
         )
         embed.add_field(name="Requester", value=ctx.author.mention)
-        embed.add_field(name="Counter", value=rarity_counter)
+        embed.add_field(name="Counter", value=dict(rarity_counter))
         card_string_list = list()
         for card in card_list:
             if card["rarity"].startswith("PR"):
