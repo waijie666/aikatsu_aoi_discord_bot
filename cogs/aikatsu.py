@@ -68,7 +68,6 @@ class AikatsuCog:
                         self.aikatsup_all_items=data['all_items']
                     if ('item_id' in data) and ('tags' in data):
                         self.cached_datetime = datetime.now() 
-        print(self.cached_datetime) 
 
     async def aikatsup_image_embed(self, ctx, dict, type='Image'):
         embed = discord.Embed(title=type)
@@ -251,6 +250,8 @@ class AikatsuCog:
         elif number == 'eleven' or number == '11':
             gacha_rarity_list = random.choices(['R','SR','PR'],[78,20,2], k=10)
             gacha_rarity_list += random.choices(['SR','PR'],[98,2])
+        else:
+            return
         card_list=self.pick_cards(gacha_rarity_list)
         rarity_counter = Counter(gacha_rarity_list)
         embed = discord.Embed(title='Photokatsu Gacha Results', description='Rates: PR 2%, SR 20%, R 78%')
