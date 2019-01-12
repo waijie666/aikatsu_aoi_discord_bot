@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+rewrite = {git = "https://github.com/Rapptz/discord.py.git",ref = "rewrite"}
+aiohttp = "*"
+python-dotenv = "*"
+apscheduler = "*"
+pytz = "*"
+
+[requires]
+python_version = "3.7"

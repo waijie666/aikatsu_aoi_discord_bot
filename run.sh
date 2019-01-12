@@ -1,0 +1,1 @@
+nohup pipenv run python run.py &
