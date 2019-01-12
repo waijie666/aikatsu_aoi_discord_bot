@@ -18,7 +18,7 @@ class OwnerCog:
         except Exception as e:
             await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
         else:
-            await ctx.send("**`SUCCESS`**")
+            await ctx.send("**`ODAYAKAJANAI`**")
 
     @commands.command(name="unload", hidden=True)
     @commands.is_owner()
@@ -31,7 +31,7 @@ class OwnerCog:
         except Exception as e:
             await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
         else:
-            await ctx.send("**`SUCCESS`**")
+            await ctx.send("**`ODAYAKAJANAI`**")
 
     @commands.command(name="reload", hidden=True)
     @commands.is_owner()
@@ -46,7 +46,7 @@ class OwnerCog:
             await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
             traceback.print_exc(file=sys.stdout)
         else:
-            await ctx.send("**`SUCCESS`**")
+            await ctx.send("**`ODAYAKAJANAI`**")
 
 
 def setup(bot):
