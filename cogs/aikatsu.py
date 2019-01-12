@@ -233,6 +233,7 @@ class AikatsuCog:
         total = len(result_dict_list)
         if total == 0:
             await ctx.send('Results do not exist')
+            return
         post_no = random.randint(0, total - 1)
         await self.photokatsu_image_embed(ctx, result_dict_list[post_no])
 
