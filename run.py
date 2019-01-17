@@ -61,8 +61,10 @@ bot.apscheduler.add_job(
     jobstore="default",
 )
 
+
 async def message_send(channel_id, message):
     await bot.get_channel(channel_id).send(message)
+
 
 @bot.command(name="list_job", hidden=True)
 @commands.is_owner()

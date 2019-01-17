@@ -3,6 +3,7 @@ from discord.ext import commands
 import random
 import csv
 from datetime import datetime, timedelta
+import pytz
 from collections import Counter
 
 
@@ -12,6 +13,7 @@ class AikatsuCog:
         self.aikatsup_item_id = list()
         self.aikatsup_tags = list()
         self.cached_datetime = None
+        self.airtime_datetime = None
 
         with open("photokatsu.csv", "r") as csvfile:
             fieldnames = [
@@ -86,6 +88,7 @@ class AikatsuCog:
     async def aikatsup_image_embed(self, ctx, dict, type="Image"):
         embed = discord.Embed(title=type)
         embed.set_image(url=dict["image"]["url"])
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
         embed.add_field(name="Requester", value=ctx.author.mention)
         if "words" in dict:
             embed.add_field(name="Subs", value=dict["words"])
@@ -105,6 +108,7 @@ class AikatsuCog:
     async def info(self, ctx):
         await self.aikatsup_info_cache()
         embed = discord.Embed(title="Info")
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
         embed.add_field(name="Requester", value=ctx.author.mention)
         embed.add_field(name="Image Count", value=self.aikatsup_all_items, inline=False)
         long_tag_chunk = list()
@@ -181,6 +185,7 @@ class AikatsuCog:
         embed.set_thumbnail(
             url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
         )
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
         embed.add_field(name="Requester", value=ctx.author.mention)
         embed.add_field(name="ID", value=dict["id"])
         embed.add_field(name="Name", value=dict["name"])
@@ -300,6 +305,7 @@ class AikatsuCog:
         embed.set_thumbnail(
             url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
         )
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
         embed.add_field(name="Requester", value=ctx.author.mention)
         embed.add_field(name="Counter", value=dict(rarity_counter))
         card_string_list = list()
@@ -322,6 +328,55 @@ class AikatsuCog:
             embed.add_field(name="Skill", value=card_list[0]["skill"])
         embed.set_footer(text="")
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def next_episode(self, ctx):
+        jp_timezone = pytz.timezone("Asia/Tokyo")
+        first_week_aikatsu_2019 = datetime.fromisoformat(
+            "2019-01-03 18:25+09:00"
+        ).astimezone(jp_timezone)
+        current_time = datetime.now(jp_timezone)
+        next_aikatsu_datetime = first_week_aikatsu_2019
+        airing = False
+
+        if self.airtime_datetime is not None:
+            if self.airtime_datetime > current_time:
+                next_aikatsu_datetime = self.airtime_datetime
+
+        while next_aikatsu_datetime < current_time:
+            if self.airtime_datetime is not None and (
+                current_time - self.airtime_datetime
+            ) < timedelta(minutes=30):
+                current_aikatsu_datetime = self.airtime_datetime
+            else:
+                current_aikatsu_datetime = next_aikatsu_datetime
+            next_aikatsu_datetime += timedelta(weeks=1)
+            if (current_time - current_aikatsu_datetime) < timedelta(minutes=30):
+                airing = True
+
+        embed = discord.Embed(
+            title="Aikatsu Next Episode", timestamp=next_aikatsu_datetime
+        )
+        fmt = "%Y-%m-%d %H:%M:%S %Z%z"
+        embed.add_field(
+            name="Next episode time",
+            value=next_aikatsu_datetime.strftime(fmt),
+            inline=False,
+        )
+        embed.add_field(
+            name="Time til next episode", value=next_aikatsu_datetime - current_time
+        )
+        embed.add_field(name="Airing now", value=airing)
+        embed.set_footer(text="Local time")
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    @commands.is_owner()
+    async def set_airtime(self, ctx, airtime: str):
+        jp_timezone = pytz.timezone("Asia/Tokyo")
+        self.airtime_datetime = datetime.fromisoformat(airtime + "+09:00").astimezone(
+            jp_timezone
+        )
 
 
 # The setup fucntion below is neccesarry. Remember we give bot.add_cog() the name of the class in this case AikatsuCog.
