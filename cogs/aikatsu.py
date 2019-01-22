@@ -5,7 +5,7 @@ import csv
 from datetime import datetime, timedelta
 import pytz
 from collections import Counter
-
+import asyncio
 
 class AikatsuCog:
     def __init__(self, bot):
@@ -14,6 +14,7 @@ class AikatsuCog:
         self.aikatsup_tags = list()
         self.cached_datetime = None
         self.airtime_datetime = None
+        self.singing_already =False
 
         with open("photokatsu.csv", "r") as csvfile:
             fieldnames = [
@@ -330,12 +331,12 @@ class AikatsuCog:
             embed.add_field(name="Skill", value=card_list[0]["skill"])
         embed.set_footer(text="")
         await ctx.send(embed=embed)
-    
+
     @photokatsu.command()
     async def gacha_until_PR(self, ctx):
-        gacha_rarity_list_try=list() 
-        gacha_rarity_list=list()
-        while "PR" not in gacha_rarity_list_try: 
+        gacha_rarity_list_try = list()
+        gacha_rarity_list = list()
+        while "PR" not in gacha_rarity_list_try:
             gacha_rarity_list_try = random.choices(["R", "SR", "PR"], [78, 20, 2])
             gacha_rarity_list += gacha_rarity_list_try
         card_list = self.pick_cards(gacha_rarity_list_try)
@@ -367,7 +368,7 @@ class AikatsuCog:
         embed.add_field(name="Special Appeal", value=card_list[0]["appeal"])
         embed.add_field(name="Skill", value=card_list[0]["skill"])
         embed.set_footer(text="")
-        await ctx.send(embed=embed) 
+        await ctx.send(embed=embed)
 
     @commands.command()
     async def next_episode(self, ctx):
@@ -418,6 +419,48 @@ class AikatsuCog:
             jp_timezone
         )
 
+    @commands.command()
+    async def singing(self, ctx):
+        if self.singing_already is True:
+            return
+        else:
+            self.singing_already = True
+        prism_spiral_string = """恋はShoot, shoot
+                            たまにCute, cute
+                            いつもLove you
+                            
+                            ミラクルをよりどりみどり
+                            カッコつけた星たち　キラリ
+                            キュンとしてる真昼の月と
+                            マワル　踊る
+                            
+                            舞い上がるロマンス
+                            旅立つ瞬間
+                            いくつものキラキラを
+                            散りばめてMy friend
+                            光れ!
+                            
+                            I love you
+                            I want you
+                            I need you, かなり
+                            たどりついた夢のほとり
+                            口びるにメロディーと
+                            魔法かけたまま　どこまでも…
+                            いろとりどりのloop
+                            描いてた
+                            
+                            恋はShoot, shoot
+                            たまにCute, cute
+                            いつもLove you"""
+        song_string_list = prism_spiral.splitlines()
+        message = await ctx.send(song_string_list[0].strip())
+        await asyncio.sleep(1)
+        message_content = message.content
+        for song_string in song_string_list[1:]:
+           message_content = message_content + '\n' + song_string.strip()
+           await message.edit(content=message_content)
+           await asyncio.sleep(1) 
+        self.singing_already = False
 
 # The setup fucntion below is neccesarry. Remember we give bot.add_cog() the name of the class in this case AikatsuCog.
 # When we load the cog, we use the name of the file.
