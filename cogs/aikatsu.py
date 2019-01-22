@@ -179,7 +179,7 @@ class AikatsuCog:
                 else:
                     await ctx.channel.send("見つからないよー＞＜")
 
-    async def photokatsu_image_embed(self, ctx, dict, title="Photokatsu"):
+    async def photokatsu_image_embed(self, ctx, dict, total=None, title="Photokatsu"):
         embed = discord.Embed(title=title)
         embed.set_image(url=dict["image_url"])
         embed.set_thumbnail(
@@ -192,6 +192,8 @@ class AikatsuCog:
         embed.add_field(name="Rarity", value=dict["rarity"])
         embed.add_field(name="Special Appeal", value=dict["appeal"])
         embed.add_field(name="Skill", value=dict["skill"])
+        if total is not None:
+            embed.add_field(name="Total search results", value=str(total))
         embed.set_footer(text="Provider: Aikatsu Wikia")
         await ctx.send(embed=embed)
 
@@ -274,7 +276,7 @@ class AikatsuCog:
             await ctx.send("Results do not exist")
             return
         post_no = random.randint(0, total - 1)
-        await self.photokatsu_image_embed(ctx, result_dict_list[post_no])
+        await self.photokatsu_image_embed(ctx, result_dict_list[post_no], total)
 
     @photokatsu.command(name="id")
     async def photokatsu_id(self, ctx, id: int):
@@ -328,6 +330,44 @@ class AikatsuCog:
             embed.add_field(name="Skill", value=card_list[0]["skill"])
         embed.set_footer(text="")
         await ctx.send(embed=embed)
+    
+    @photokatsu.command()
+    async def gacha_until_PR(self, ctx):
+        gacha_rarity_list_try=list() 
+        gacha_rarity_list=list()
+        while "PR" not in gacha_rarity_list_try: 
+            gacha_rarity_list_try = random.choices(["R", "SR", "PR"], [78, 20, 2])
+            gacha_rarity_list += gacha_rarity_list_try
+        card_list = self.pick_cards(gacha_rarity_list_try)
+        rarity_counter = Counter(gacha_rarity_list)
+        embed = discord.Embed(
+            title="Photokatsu Gacha Results", description="Rates: PR 2%, SR 20%, R 78%"
+        )
+        embed.set_thumbnail(
+            url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
+        )
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
+        embed.add_field(name="Requester", value=ctx.author.mention)
+        embed.add_field(name="Counter", value=dict(rarity_counter))
+        card_string_list = list()
+        for card in card_list:
+            if card["rarity"].startswith("PR"):
+                card_string_list.append(
+                    f'**{int(card["id"]):04}. {card["rarity"]:<4} {card["name"]}**'
+                )
+            else:
+                card_string_list.append(
+                    f'{int(card["id"]):04}. {card["rarity"]:<4} {card["name"]}'
+                )
+        embed.add_field(name="Card List", value="\n".join(card_string_list))
+        embed.set_image(url=card_list[0]["image_url"])
+        embed.add_field(name="ID", value=card_list[0]["id"])
+        embed.add_field(name="Name", value=card_list[0]["name"])
+        embed.add_field(name="Rarity", value=card_list[0]["rarity"])
+        embed.add_field(name="Special Appeal", value=card_list[0]["appeal"])
+        embed.add_field(name="Skill", value=card_list[0]["skill"])
+        embed.set_footer(text="")
+        await ctx.send(embed=embed) 
 
     @commands.command()
     async def next_episode(self, ctx):
