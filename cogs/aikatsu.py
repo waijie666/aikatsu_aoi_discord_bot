@@ -452,7 +452,7 @@ class AikatsuCog:
                             恋はShoot, shoot
                             たまにCute, cute
                             いつもLove you"""
-        song_string_list = prism_spiral.splitlines()
+        song_string_list = prism_spiral_string.splitlines()
         message = await ctx.send(song_string_list[0].strip())
         await asyncio.sleep(1)
         message_content = message.content
