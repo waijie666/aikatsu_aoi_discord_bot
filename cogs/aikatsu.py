@@ -6,16 +6,35 @@ from datetime import datetime, timedelta
 import pytz
 from collections import Counter
 import asyncio
+from os import listdir
+from os.path import isfile, join
+
 
 class AikatsuCog:
     def __init__(self, bot):
         self.bot = bot
+        self.airtime_datetime = None
+        self.singing_already = False
+        self.init_aikatsup()
+        self.init_photokatsu()
+        self.init_songs()
+
+    def init_songs(self):
+        self.songs_dict = dict()
+        songs_dir = "songs"
+        for f in listdir(songs_dir):
+            if isfile(join(songs_dir, f)) and "txt" in f:
+                with open(join(songs_dir, f)) as songfile:
+                    song_title = songfile.readline()
+                    song_lyrics = songfile.read()
+                    self.songs_dict[song_title] = song_lyrics
+
+    def init_aikatsup(self):
         self.aikatsup_item_id = list()
         self.aikatsup_tags = list()
         self.cached_datetime = None
-        self.airtime_datetime = None
-        self.singing_already =False
 
+    def init_photokatsu(self):
         with open("photokatsu.csv", "r") as csvfile:
             fieldnames = [
                 "rarity",
@@ -333,16 +352,24 @@ class AikatsuCog:
         await ctx.send(embed=embed)
 
     @photokatsu.command()
-    async def gacha_until_PR(self, ctx):
+    async def gacha_until_PR(self, ctx, rates: float = 2):
+        if rates > 78 or rates < 0.01:
+            return
+        else:
+            N_rate = 80.0 - rates
+            PR_rate = rates
         gacha_rarity_list_try = list()
         gacha_rarity_list = list()
         while "PR" not in gacha_rarity_list_try:
-            gacha_rarity_list_try = random.choices(["R", "SR", "PR"], [78, 20, 2])
+            gacha_rarity_list_try = random.choices(
+                ["R", "SR", "PR"], [N_rate, 20, PR_rate]
+            )
             gacha_rarity_list += gacha_rarity_list_try
         card_list = self.pick_cards(gacha_rarity_list_try)
         rarity_counter = Counter(gacha_rarity_list)
         embed = discord.Embed(
-            title="Photokatsu Gacha Results", description="Rates: PR 2%, SR 20%, R 78%"
+            title="Photokatsu Gacha Results",
+            description=f"Rates: PR {PR_rate}%, SR 20%, R {N_rate}%",
         )
         embed.set_thumbnail(
             url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
@@ -411,7 +438,7 @@ class AikatsuCog:
         embed.set_footer(text="Local time")
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def set_airtime(self, ctx, airtime: str):
         jp_timezone = pytz.timezone("Asia/Tokyo")
@@ -419,48 +446,59 @@ class AikatsuCog:
             jp_timezone
         )
 
-    @commands.command()
+    @commands.command(
+        description="Sings a random song. Use !!!fall to interrupt her singing"
+    )
     async def singing(self, ctx):
         if self.singing_already is True:
             return
         else:
             self.singing_already = True
-        prism_spiral_string = """恋はShoot, shoot
-                            たまにCute, cute
-                            いつもLove you
-                            
-                            ミラクルをよりどりみどり
-                            カッコつけた星たち　キラリ
-                            キュンとしてる真昼の月と
-                            マワル　踊る
-                            
-                            舞い上がるロマンス
-                            旅立つ瞬間
-                            いくつものキラキラを
-                            散りばめてMy friend
-                            光れ!
-                            
-                            I love you
-                            I want you
-                            I need you, かなり
-                            たどりついた夢のほとり
-                            口びるにメロディーと
-                            魔法かけたまま　どこまでも…
-                            いろとりどりのloop
-                            描いてた
-                            
-                            恋はShoot, shoot
-                            たまにCute, cute
-                            いつもLove you"""
-        song_string_list = prism_spiral_string.splitlines()
-        message = await ctx.send(song_string_list[0].strip())
+        song_name = random.choice([key for key, value in self.songs_dict.items()])
+        full_song_string = self.songs_dict[song_name]
+        song_string_list = full_song_string.splitlines()
+        message = await ctx.send("Singing **" + song_name + "** \n")
         await asyncio.sleep(1)
         message_content = message.content
-        for song_string in song_string_list[1:]:
-           message_content = message_content + '\n' + song_string.strip()
-           await message.edit(content=message_content)
-           await asyncio.sleep(1) 
+        for song_string in song_string_list:
+            message_append_string = song_string.strip()
+            if message_append_string == "":
+                emoji = str(self.bot.get_emoji(537_242_527_070_158_858))
+                message_append_string = "\n" + (emoji + " ") * 5 + "\n"
+            message_content = message_content + "\n" + message_append_string
+            await message.edit(content=message_content)
+            try:
+
+                def check(wait_message_argument):
+                    return "!!!fall" in wait_message_argument.content
+
+                wait_message = await self.bot.wait_for(
+                    "message", timeout=1, check=check
+                )
+            except asyncio.TimeoutError:
+                pass
+            else:
+                embed = discord.Embed()
+                embed.set_image(url="https://i.imgur.com/CJ2IM87.png")
+                await message.edit(content=message_content, embed=embed)
+                await wait_message.add_reaction(
+                    self.bot.get_emoji(537_234_052_080_467_968)
+                )
+                self.singing_already = False
+                return
+
+        embed = discord.Embed()
+        embed.set_image(
+            url="https://vignette.wikia.nocookie.net/aikatsu/images/f/f7/Dc161b80.jpg"
+        )
+        await message.edit(content=message_content, embed=embed)
         self.singing_already = False
+
+    @singing.error
+    async def singing_handler(self, ctx, error):
+        self.singing_already = False
+        print(error)
+
 
 # The setup fucntion below is neccesarry. Remember we give bot.add_cog() the name of the class in this case AikatsuCog.
 # When we load the cog, we use the name of the file.
