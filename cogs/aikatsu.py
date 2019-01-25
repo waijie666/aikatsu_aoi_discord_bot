@@ -8,7 +8,7 @@ from collections import Counter
 import asyncio
 from os import listdir
 from os.path import isfile, join
-
+import concurrent.futures
 
 class AikatsuCog:
     def __init__(self, bot):
@@ -18,6 +18,7 @@ class AikatsuCog:
         self.init_aikatsup()
         self.init_photokatsu()
         self.init_songs()
+        self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
 
     def init_songs(self):
         self.songs_dict = dict()
@@ -81,7 +82,8 @@ class AikatsuCog:
             elif card_dict["rarity"] == "N+":
                 self.Nplus_dict_list.append(card_dict)
 
-    def chunks(self, l, n):
+    @staticmethod
+    def chunks(l, n):
         """Yield successive n-sized chunks from l."""
         for i in range(0, len(l), n):
             yield l[i : i + n]
@@ -351,22 +353,28 @@ class AikatsuCog:
         embed.set_footer(text="")
         await ctx.send(embed=embed)
 
-    @photokatsu.command()
-    async def gacha_until_PR(self, ctx, rates: float = 2):
-        if rates > 78 or rates < 0.01:
-            return
-        else:
-            N_rate = 80.0 - rates
-            PR_rate = rates
+    @staticmethod
+    def gacha_until_PR_worker(N_rate, PR_rate):
         gacha_rarity_list_try = list()
-        gacha_rarity_list = list()
+        gacha_rarity_dict = {"PR":0,"SR":0,"R":0}
         while "PR" not in gacha_rarity_list_try:
             gacha_rarity_list_try = random.choices(
                 ["R", "SR", "PR"], [N_rate, 20, PR_rate]
             )
-            gacha_rarity_list += gacha_rarity_list_try
-        card_list = self.pick_cards(gacha_rarity_list_try)
-        rarity_counter = Counter(gacha_rarity_list)
+            gacha_rarity_dict[gacha_rarity_list_try[0]] += 1
+        return gacha_rarity_dict
+    
+    @photokatsu.command()
+    async def gacha_until_PR(self, ctx, rates: float = 2):
+        if rates > 78:
+            rates = 78
+        elif rates < 0.00001:
+            rates = 0.00001
+        N_rate = 80.0 - rates
+        PR_rate = rates
+        gacha_rarity_dict = await self.bot.loop.run_in_executor(self.bot.process_executor, self.gacha_until_PR_worker , N_rate, PR_rate)
+        card_list = self.pick_cards(["PR"])
+        rarity_counter = gacha_rarity_dict
         embed = discord.Embed(
             title="Photokatsu Gacha Results",
             description=f"Rates: PR {PR_rate}%, SR 20%, R {N_rate}%",
@@ -504,3 +512,6 @@ class AikatsuCog:
 # When we load the cog, we use the name of the file.
 def setup(bot):
     bot.add_cog(AikatsuCog(bot))
+
+def teardown(bot):
+    bot.process_executor.shutdown()
