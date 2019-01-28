@@ -370,7 +370,7 @@ class AikatsuCog:
             rates = 78
         elif rates < 0.00001:
             rates = 0.00001
-        N_rate = 80.0 - rates
+        N_rate = 80 - rates
         PR_rate = rates
         gacha_rarity_dict = await self.bot.loop.run_in_executor(self.bot.process_executor, self.gacha_until_PR_worker , N_rate, PR_rate)
         card_list = self.pick_cards(["PR"])
@@ -378,6 +378,55 @@ class AikatsuCog:
         embed = discord.Embed(
             title="Photokatsu Gacha Results",
             description=f"Rates: PR {PR_rate}%, SR 20%, R {N_rate}%",
+        )
+        embed.set_thumbnail(
+            url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
+        )
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
+        embed.add_field(name="Requester", value=ctx.author.mention)
+        embed.add_field(name="Counter", value=dict(rarity_counter))
+        card_string_list = list()
+        for card in card_list:
+            if card["rarity"].startswith("PR"):
+                card_string_list.append(
+                    f'**{int(card["id"]):04}. {card["rarity"]:<4} {card["name"]}**'
+                )
+            else:
+                card_string_list.append(
+                    f'{int(card["id"]):04}. {card["rarity"]:<4} {card["name"]}'
+                )
+        embed.add_field(name="Card List", value="\n".join(card_string_list))
+        embed.set_image(url=card_list[0]["image_url"])
+        embed.add_field(name="ID", value=card_list[0]["id"])
+        embed.add_field(name="Name", value=card_list[0]["name"])
+        embed.add_field(name="Rarity", value=card_list[0]["rarity"])
+        embed.add_field(name="Special Appeal", value=card_list[0]["appeal"])
+        embed.add_field(name="Skill", value=card_list[0]["skill"])
+        embed.set_footer(text="")
+        await ctx.send(embed=embed)
+
+    @photokatsu.command()
+    async def gacha_until(self, ctx, *, search_string):
+        gacha_rarity_list_try = list()
+        card_list = list()
+        found = False
+        gacha_rarity_dict = {"PR":0,"SR":0,"R":0} 
+        search_count = 0 
+        while found is False:
+            search_count += 1 
+            gacha_rarity_list_try = random.choices(
+                ["R", "SR", "PR"], [78, 20, 2]
+            )
+            gacha_rarity_dict[gacha_rarity_list_try[0]] += 1
+            card_list = self.pick_cards(gacha_rarity_list_try)
+            if search_string.casefold() in card_list[0]["name"].casefold() :
+                found = True
+            if search_count > 200000:
+                await ctx.send(search_string + " not found")
+                return
+        rarity_counter = gacha_rarity_dict
+        embed = discord.Embed(
+            title="Photokatsu Gacha Results", description="Rates: PR 2%, SR 20%, R 78%"
         )
         embed.set_thumbnail(
             url="https://pbs.twimg.com/profile_images/980686341498290176/WSTxLywV_400x400.jpg"
@@ -490,10 +539,17 @@ class AikatsuCog:
                 embed.set_image(url="https://i.imgur.com/CJ2IM87.png")
                 await message.edit(content=message_content, embed=embed)
                 await wait_message.add_reaction(
-                    self.bot.get_emoji(537_234_052_080_467_968)
+                    self.bot.get_emoji(537234052080467968)
                 )
-                self.singing_already = False
-                return
+                if random.choice([True, False]):
+                    await asyncio.sleep(3)
+                    await message.edit(content=message_content, embed=discord.Embed())
+                    await wait_message.add_reaction(
+                        self.bot.get_emoji(485997782344138772)
+                    )
+                else:
+                    self.singing_already = False
+                    return
 
         embed = discord.Embed()
         embed.set_image(
