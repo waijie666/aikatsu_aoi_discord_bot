@@ -372,7 +372,8 @@ class AikatsuCog:
             rates = 0.00001
         N_rate = 80 - rates
         PR_rate = rates
-        gacha_rarity_dict = await self.bot.loop.run_in_executor(self.bot.process_executor, self.gacha_until_PR_worker , N_rate, PR_rate)
+        async with ctx.typing():
+            gacha_rarity_dict = await self.bot.loop.run_in_executor(self.bot.process_executor, self.gacha_until_PR_worker , N_rate, PR_rate)
         card_list = self.pick_cards(["PR"])
         rarity_counter = gacha_rarity_dict
         embed = discord.Embed(
@@ -411,7 +412,8 @@ class AikatsuCog:
         card_list = list()
         found = False
         gacha_rarity_dict = {"PR":0,"SR":0,"R":0} 
-        search_count = 0 
+        search_count = 0
+        await ctx.trigger_typing() 
         while found is False:
             search_count += 1 
             gacha_rarity_list_try = random.choices(
@@ -536,7 +538,7 @@ class AikatsuCog:
                 pass
             else:
                 embed = discord.Embed()
-                embed.set_image(url="https://i.imgur.com/CJ2IM87.png")
+                embed.set_image(url="https://i.imgur.com/sNqvjaE.png")
                 await message.edit(content=message_content, embed=embed)
                 await wait_message.add_reaction(
                     self.bot.get_emoji(537234052080467968)
