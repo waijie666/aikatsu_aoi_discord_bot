@@ -12,6 +12,7 @@ python-dotenv = "*"
 apscheduler = "*"
 pytz = "*"
 sqlalchemy = "*"
+pillow = "*"
 
 [requires]
 python_version = "3.7"
