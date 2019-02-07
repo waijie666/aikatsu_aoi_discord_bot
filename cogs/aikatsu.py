@@ -505,6 +505,14 @@ class AikatsuCog:
             jp_timezone
         )
 
+    async def detect_fall(self, message):
+        if message.content.startswith("!!!fall"):
+           if self.falling is False:
+               self.falling = True
+               self.lastfallmessage = message
+               
+    
+
     @commands.command(
         description="Sings a random song. Use !!!fall to interrupt her singing"
     )
@@ -513,46 +521,40 @@ class AikatsuCog:
             return
         else:
             self.singing_already = True
+            self.falling = False
         song_name = random.choice([key for key, value in self.songs_dict.items()])
         full_song_string = self.songs_dict[song_name]
         song_string_list = full_song_string.splitlines()
         message = await ctx.send("Singing **" + song_name + "** \n")
+        self.bot.add_listener(self.detect_fall, 'on_message')
         await asyncio.sleep(1)
         message_content = message.content
         for song_string in song_string_list:
-            message_append_string = song_string.strip()
-            if message_append_string == "":
-                emoji = str(self.bot.get_emoji(537_242_527_070_158_858))
-                message_append_string = "\n" + (emoji + " ") * 5 + "\n"
-            message_content = message_content + "\n" + message_append_string
-            await message.edit(content=message_content)
-            try:
-
-                def check(wait_message_argument):
-                    return "!!!fall" in wait_message_argument.content
-
-                wait_message = await self.bot.wait_for(
-                    "message", timeout=1, check=check
-                )
-            except asyncio.TimeoutError:
-                pass
-            else:
+            if self.falling is True:
                 embed = discord.Embed()
                 embed.set_image(url="https://i.imgur.com/sNqvjaE.png")
                 await message.edit(content=message_content, embed=embed)
-                await wait_message.add_reaction(
-                    self.bot.get_emoji(537234052080467968)
+                await self.lastfallmessage.add_reaction(
+                        self.bot.get_emoji(537234052080467968)
                 )
                 if random.choice([True, False]):
                     await asyncio.sleep(3)
                     await message.edit(content=message_content, embed=discord.Embed())
-                    await wait_message.add_reaction(
+                    await self.lastfallmessage.add_reaction(
                         self.bot.get_emoji(485997782344138772)
                     )
+                    self.falling = False
                 else:
                     self.singing_already = False
                     return
-
+            message_append_string = song_string.strip()
+            if message_append_string == "":
+                emoji = str(self.bot.get_emoji(537242527070158858))
+                message_append_string = "\n" + (emoji + " ") * 5 + "\n"
+            message_content = message_content + "\n" + message_append_string
+            await message.edit(content=message_content)
+            await asyncio.sleep(1)
+        self.bot.remove_listener(self.detect_fall, 'on_message')
         embed = discord.Embed()
         embed.set_image(
             url="https://vignette.wikia.nocookie.net/aikatsu/images/f/f7/Dc161b80.jpg"
