@@ -10,6 +10,7 @@ from os import listdir
 from os.path import isfile, join
 import concurrent.futures
 import operator
+import typing
 
 class AikatsuCog:
     def __init__(self, bot):
@@ -528,7 +529,7 @@ class AikatsuCog:
         await ctx.send(embed=embed)
     
     @commands.command()
-    async def next_birthday(self, ctx):
+    async def next_birthday(self, ctx, days_or_string : typing.Union[int,str] = 30):
         jp_timezone = pytz.timezone("Asia/Tokyo")
         current_time = datetime.now(jp_timezone)
         today = current_time.date()
@@ -542,8 +543,12 @@ class AikatsuCog:
                 idol_dict["next_birthday"] = birthday_current_year
 
         sorted_idol_dict_list = sorted(self.idol_dict_list, key=operator.itemgetter("next_birthday"))
-        filtered_idol_dict_list  = [ idol_dict for idol_dict in sorted_idol_dict_list if idol_dict["next_birthday"] < today + timedelta(days=30) ]
-        embed = discord.Embed(title="Aikatsu Next Birthdays")
+        if isinstance(days_or_string, int):
+            filtered_idol_dict_list  = [ idol_dict for idol_dict in sorted_idol_dict_list if idol_dict["next_birthday"] < today + timedelta(days=days_or_string) ]
+            embed = discord.Embed(title="Aikatsu Next Birthdays", description=f"Displaying next birthdays for the next {str(days_or_string)} days (max 25 idols)")
+        elif isinstance(days_or_string, str):
+            filtered_idol_dict_list  = [ idol_dict for idol_dict in sorted_idol_dict_list if days_or_string.casefold() in idol_dict["name"].casefold() ]
+            embed = discord.Embed(title="Aikatsu Next Birthdays", description=f"Displaying next birthdays for search string: {str(days_or_string)} (max 25 idols)")
         for idol_dict in filtered_idol_dict_list:
             embed.add_field(name=idol_dict["name"], value=idol_dict["next_birthday"], inline=False)
         await ctx.send(embed=embed)
