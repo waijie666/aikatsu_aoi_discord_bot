@@ -2,13 +2,14 @@ import discord
 from discord.ext import commands
 import random
 import csv
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import pytz
 from collections import Counter
 import asyncio
 from os import listdir
 from os.path import isfile, join
 import concurrent.futures
+import operator
 
 class AikatsuCog:
     def __init__(self, bot):
@@ -18,7 +19,16 @@ class AikatsuCog:
         self.init_aikatsup()
         self.init_photokatsu()
         self.init_songs()
+        self.init_aikatsu_idol()
         self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
+
+    def init_aikatsu_idol(self):
+        with open("aikatsu_idol.csv", "r") as csvfile:
+            csvfile.readline()
+            fieldnames = ["birthday","name","blood","height","school","type","series"]
+            reader = csv.DictReader(csvfile, fieldnames=fieldnames)
+            self.idol_dict_list = list(reader)
+        self.bot.apscheduler.add_job(self.send_birthday_message, trigger="cron",minute="0",hour="0",replace_existing=True,id="birthday_post", jobstore="default")
 
     def init_songs(self):
         self.songs_dict = dict()
@@ -82,6 +92,25 @@ class AikatsuCog:
             elif card_dict["rarity"] == "N+":
                 self.Nplus_dict_list.append(card_dict)
 
+    async def send_birthday_message(self):
+        jp_timezone = pytz.timezone("Asia/Tokyo")
+        current_time = datetime.now(jp_timezone)
+        today = current_time.date()
+        current_year = today.year
+
+        for idol_dict in self.idol_dict_list:
+            birthday_current_year = datetime.strptime(str(current_year) + idol_dict["birthday"],"%Y%B %d").date()
+            if birthday_current_year < today :
+                idol_dict["next_birthday"] = birthday_current_year.replace(year=current_year+1)
+            else:
+                idol_dict["next_birthday"] = birthday_current_year
+
+        sorted_idol_dict_list = sorted(self.idol_dict_list, key=operator.itemgetter("next_birthday"))
+        filtered_idol_dict_list  = [ idol_dict for idol_dict in sorted_idol_dict_list if idol_dict["next_birthday"] == today ]
+        send_channel = self.bot.get_channel(326048564965015552)
+        for idol_dict in filtered_idol_dict_list:
+           await send_channel.send(f"Today **{idol_dict['birthday']}** is **{idol_dict['name']}**'s birthday :birthday: :birthday: :birthday:" )
+
     @staticmethod
     def chunks(l, n):
         """Yield successive n-sized chunks from l."""
@@ -122,9 +151,9 @@ class AikatsuCog:
     @commands.group(case_insensitive=True)
     async def aikatsup(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send(
-                "Invalid subcommands. Subcommands are `info` `subs` `tag` `random`."
-            )
+            subcommands_str_list = [ f"`{subcommands.name}`" for subcommands in ctx.command.walk_commands() ]
+            await ctx.send("Invalid subcommands. Subcommands are " + " ".join(subcommands_str_list) )
+
 
     @aikatsup.command()
     async def info(self, ctx):
@@ -237,7 +266,8 @@ class AikatsuCog:
     @commands.group(case_insensitive=True)
     async def photokatsu(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send("Invalid subcommands. Subcommands are `random` `id` `gacha`")
+            subcommands_str_list = [ f"`{subcommands.name}`" for subcommands in ctx.command.walk_commands() ]
+            await ctx.send("Invalid subcommands. Subcommands are " + " ".join(subcommands_str_list) )
 
     @photokatsu.command(
         name="random",
@@ -496,6 +526,28 @@ class AikatsuCog:
         embed.add_field(name="Airing now", value=airing)
         embed.set_footer(text="Local time")
         await ctx.send(embed=embed)
+    
+    @commands.command()
+    async def next_birthday(self, ctx):
+        jp_timezone = pytz.timezone("Asia/Tokyo")
+        current_time = datetime.now(jp_timezone)
+        today = current_time.date()
+        current_year = today.year
+
+        for idol_dict in self.idol_dict_list:
+            birthday_current_year = datetime.strptime(str(current_year) + idol_dict["birthday"],"%Y%B %d").date()
+            if birthday_current_year < today :
+                idol_dict["next_birthday"] = birthday_current_year.replace(year=current_year+1)
+            else:
+                idol_dict["next_birthday"] = birthday_current_year
+
+        sorted_idol_dict_list = sorted(self.idol_dict_list, key=operator.itemgetter("next_birthday"))
+        filtered_idol_dict_list  = [ idol_dict for idol_dict in sorted_idol_dict_list if idol_dict["next_birthday"] < today + timedelta(days=30) ]
+        embed = discord.Embed(title="Aikatsu Next Birthdays")
+        for idol_dict in filtered_idol_dict_list:
+            embed.add_field(name=idol_dict["name"], value=idol_dict["next_birthday"], inline=False)
+        await ctx.send(embed=embed)
+
 
     @commands.command(hidden=True)
     @commands.is_owner()
@@ -506,13 +558,11 @@ class AikatsuCog:
         )
 
     async def detect_fall(self, message):
-        if message.content.startswith("!!!fall"):
+        if message.content.strip().casefold().startswith("!!!fall"):
            if self.falling is False:
                self.falling = True
                self.lastfallmessage = message
                
-    
-
     @commands.command(
         description="Sings a random song. Use !!!fall to interrupt her singing"
     )

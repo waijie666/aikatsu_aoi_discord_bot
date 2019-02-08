@@ -168,7 +168,7 @@
         },
         "rewrite": {
             "git": "https://github.com/Rapptz/discord.py.git",
-            "ref": "1222bce271cf736b4db8c1eecb2823edd22f85dc"
+            "ref": "700dbb5555f7edd5a1fa8915d606495439b24ee3"
         },
         "six": {
             "hashes": [
