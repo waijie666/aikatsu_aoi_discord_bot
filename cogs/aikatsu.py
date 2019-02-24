@@ -11,8 +11,27 @@ from os.path import isfile, join
 import concurrent.futures
 import operator
 import typing
+from collections import defaultdict
+import re
 
-class AikatsuCog:
+class LString:
+    def __init__(self):
+        self._total = 0
+        self._successors = defaultdict(int)
+
+    def put(self, word):
+        self._successors[word] += 1
+        self._total += 1
+
+    def get_random(self):
+        ran = random.randint(0, self._total - 1)
+        for key, value in self._successors.items():
+            if ran < value:
+                return key
+            else:
+                ran -= value
+
+class AikatsuCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.airtime_datetime = None
@@ -21,7 +40,74 @@ class AikatsuCog:
         self.init_photokatsu()
         self.init_songs()
         self.init_aikatsu_idol()
+        self.init_aikatsu_markov()
+        try:
+            self.init_aikatsu_stars_screenshots()
+            self.init_aikatsu_screenshots()
+        else:
+            print("Screenshot initialization failed. Screenshots may not work in this environment")
         self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
+
+    def init_aikatsu_stars_screenshots(self):
+        self.aistars_screenshot_dict = dict()
+        
+        with open("aistars_screenshot.txt","r") as f:
+            fullstring = f.read()
+            lines = fullstring.split("\n")
+            for line in lines:
+                episode_and_framenumber = line.split("screenshot")
+                if len(episode_and_framenumber) < 2:
+                    continue
+                episode = str(int(episode_and_framenumber[0]))
+                frame_number = int(episode_and_framenumber[1].split(".")[0])
+                full_filename = "/screenshots/aistars/" + line
+                if episode not in self.aistars_screenshot_dict:
+                    self.aistars_screenshot_dict[episode] = list()
+                self.aistars_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
+
+    def init_aikatsu_screenshots(self):
+        self.aikatsu_screenshot_dict = dict()
+
+        with open("aikatsu_screenshot.txt","r") as f:
+            fullstring = f.read()
+            lines = fullstring.split("\n")
+            for line in lines:
+                episode_and_framenumber = line.split("screenshot")
+                if len(episode_and_framenumber) < 2:
+                    continue
+                episode = str(int(episode_and_framenumber[0]))
+                frame_number = int(episode_and_framenumber[1].split(".")[0])
+                full_filename = "/backup/aikatsu_screenshot/" + line
+                if episode not in self.aikatsu_screenshot_dict:
+                    self.aikatsu_screenshot_dict[episode] = list()
+                self.aikatsu_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
+
+    def init_aikatsu_markov(self):
+        self.couple_words = defaultdict(LString)
+        self.uppercase_words_set = set()
+        for file in [ "aikatsu_og_subs.txt", "aikatsu_stars_subs.txt" ] :
+            with open(file, 'r') as f:
+                for line in f:
+                    self.add_message(line)
+
+    def add_message(self, message):
+        message = re.sub(r'\s[-\"]', '', message).strip()
+        words_prefiltered = message.split()
+        words = list()
+        for word in words_prefiltered:
+            try:
+                float(word)
+            except:
+                words.append(word)
+        if len(words) < 2:
+            return
+        for i in range(2, len(words)):
+            self.couple_words[(words[i - 2], words[i - 1])].put(words[i])
+            if words[i - 2][0].isupper():
+                self.uppercase_words_set.add((words[i - 2], words[i - 1]))
+        self.couple_words[(words[-2], words[-1])].put("")
+        if words[-2][0].isupper():
+            self.uppercase_words_set.add((words[-2], words[-1]))
 
     def init_aikatsu_idol(self):
         with open("aikatsu_idol.csv", "r") as csvfile:
@@ -561,6 +647,31 @@ class AikatsuCog:
         self.airtime_datetime = datetime.fromisoformat(airtime + "+09:00").astimezone(
             jp_timezone
         )
+    
+    @commands.command()
+    async def aikatsu_quote_generate(self, ctx, word_length : int = 15):
+        if word_length > 200:
+            word_length = 200
+        if word_length < 5:
+            word_length = 5
+        final_result = []
+        while len(final_result) < word_length :
+            max_sentence_length = word_length - len(final_result)
+            if max_sentence_length < 2 :
+                max_sentence_length = 2
+            if max_sentence_length > 15 :
+                max_sentence_length = 15
+            sentence_length = random.randint(2, max_sentence_length) 
+            result = []
+            while len(result) < sentence_length :
+                result = []			
+                s = random.choice(list(self.uppercase_words_set))
+                result.extend(s)
+                while result[-1] and len(result) < max_sentence_length + 50:
+                    w = self.couple_words[(result[-2], result[-1])].get_random()
+                    result.append(w)
+            final_result.extend(result)
+        await ctx.send(" ".join(final_result))
 
     async def detect_fall(self, message):
         if message.content.strip().casefold().startswith("!!!fall"):
@@ -621,7 +732,44 @@ class AikatsuCog:
     async def singing_handler(self, ctx, error):
         self.singing_already = False
         print(error)
+   
+    @commands.command()
+    async def aikatsu_stars_screenshot(self, ctx, episode: int=0):
+        if episode == 0 or episode > 100:
+            episode = str(random.randint(1,100))
+        else:
+            episode = str(episode)
+        frame_number_index = random.randint(0, len(self.aistars_screenshot_dict[episode])-1)
+        full_filename = self.aistars_screenshot_dict[episode][frame_number_index]["full_filename"] 
+        filename = self.aistars_screenshot_dict[episode][frame_number_index]["filename"]
+        embed = discord.Embed(title="Aikatsu Stars Screenshots")
+        minutes, seconds = divmod(frame_number_index, 60)
+        embed.add_field(name="Episode", value=episode)
+        embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
+        with open(full_filename, "rb") as f:
+            jpg_data = f.read()
+            discord_file = discord.File(jpg_data,filename)
+            await ctx.send(file=discord_file)
+            await ctx.send(embed=embed)
 
+    @commands.command()
+    async def aikatsu_screenshot(self, ctx, episode: int=0):
+        if episode == 0 or episode > 178:
+            episode = str(random.randint(1,178))
+        else:
+            episode = str(episode)
+        frame_number_index = random.randint(0, len(self.aikatsu_screenshot_dict[episode])-1)
+        full_filename = self.aikatsu_screenshot_dict[episode][frame_number_index]["full_filename"]
+        filename = self.aikatsu_screenshot_dict[episode][frame_number_index]["filename"]
+        embed = discord.Embed(title="Aikatsu Screenshots")
+        minutes, seconds = divmod(frame_number_index*5, 60)
+        embed.add_field(name="Episode", value=episode)
+        embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
+        with open(full_filename, "rb") as f:
+            jpg_data = f.read()
+            discord_file = discord.File(jpg_data,filename)
+            await ctx.send(file=discord_file)
+            await ctx.send(embed=embed)
 
 # The setup fucntion below is neccesarry. Remember we give bot.add_cog() the name of the class in this case AikatsuCog.
 # When we load the cog, we use the name of the file.
