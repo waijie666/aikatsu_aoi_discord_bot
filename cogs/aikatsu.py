@@ -44,7 +44,7 @@ class AikatsuCog(commands.Cog):
         try:
             self.init_aikatsu_stars_screenshots()
             self.init_aikatsu_screenshots()
-        else:
+        except:
             print("Screenshot initialization failed. Screenshots may not work in this environment")
         self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
 

@@ -6,6 +6,7 @@ import discord
 from PIL import Image
 import asyncio
 import aiohttp
+import re
 
 class CustomHelpFormatter(HelpFormatter):
     async def filter_command_list(self):
@@ -114,8 +115,15 @@ class TestCog(commands.Cog):
     @commands.command(hidden=True)
     @commands.is_owner()
     async def admin_help(self, ctx, *commands : str):
-        admin_custom_help_formatter = CustomHelpFormatter(show_hidden=True, show_check_failure=True)
         """Shows this message."""
+        _mentions_transforms = {
+            '@everyone': '@\u200beveryone',
+            '@here': '@\u200bhere'
+        }
+        
+        _mention_pattern = re.compile('|'.join(_mentions_transforms.keys()))
+
+        admin_custom_help_formatter = CustomHelpFormatter(show_hidden=True, show_check_failure=True)
         bot = ctx.bot
         destination = ctx.message.author if bot.pm_help else ctx.message.channel
 
@@ -170,6 +178,13 @@ class TestCog(commands.Cog):
     @commands.command()
     async def help(self, ctx, *commands : str):
         """Shows this message."""
+        _mentions_transforms = {
+            '@everyone': '@\u200beveryone',
+            '@here': '@\u200bhere'
+        }
+        
+        _mention_pattern = re.compile('|'.join(_mentions_transforms.keys()))
+
         bot = ctx.bot
         bot.formatter = CustomHelpFormatter()
         destination = ctx.message.author if bot.pm_help else ctx.message.channel
