@@ -1,5 +1,5 @@
 from discord.ext import commands
-from discord.ext.commands import HelpFormatter
+#from discord.ext.commands import HelpFormatter
 import sys, traceback
 from io import BytesIO
 import discord
@@ -7,48 +7,96 @@ from PIL import Image
 import asyncio
 import aiohttp
 import re
+from discord.ext.commands import DefaultHelpCommand
+import itertools
 
-class CustomHelpFormatter(HelpFormatter):
-    async def filter_command_list(self):
-        """Returns a filtered list of commands based on the two attributes
-        provided, :attr:`show_check_failure` and :attr:`show_hidden`. Also
-        filters based on if :meth:`is_cog` is valid.
-        Returns
-        --------
-        iterable
-            An iterable with the filter being applied. The resulting value is
-            a (key, value) tuple of the command name and the command itself.
-        """
-        def predicate(tuple):
-            cmd = tuple[1]
-            if self.is_cog():
-                # filter commands that don't exist to this cog.
-                if cmd.instance is not self.command:
-                    return False
+class HelpCommandWithSubcommands(DefaultHelpCommand):
 
-            if cmd.hidden and not self.show_hidden:
-                return False
+    def __init__(self):
+        attrs = {'aliases': ['admin_help']}
+        super().__init__(command_attrs=attrs)
 
-            if self.show_check_failure:
-                # we don't wanna bother doing the checks if the user does not
-                # care about them, so just return true.
-                return True
-
-            try:
-                return cmd.can_run(self.context) and self.context.bot.can_run(self.context)
-            except CommandError:
-                return False
-
-        #Custom iterator to display subcommands
-        if not self.is_cog():
-            iterator = {i.qualified_name: i for i in self.command.walk_commands()}.items()
+    async def prepare_help_command(self, ctx, command):
+        await super().prepare_help_command(ctx, command)
+        if ctx.invoked_with == 'admin_help' and ctx.message.author.id == ctx.bot.owner_id: 
+            self.show_hidden = True
+            self.verify_checks = False
         else:
-            iterator = {i.qualified_name: i for i in self.context.bot.walk_commands()}.items()
-        return filter(predicate, iterator)   
+            self.show_hidden = False
+            self.verify_checks = True
+
+    def add_indented_commands(self, commands, *, heading, max_size=None):
+        """Indents a list of commands after the specified heading.
+        The formatting is added to the :attr:`paginator`.
+        The default implementation is the command name indented by
+        :attr:`indent` spaces, padded to ``max_size`` followed by
+        the command's :attr:`Command.short_doc` and then shortened
+        to fit into the :attr:`width`.
+        Parameters
+        -----------
+        commands: Sequence[:class:`Command`]
+            A list of commands to indent for output.
+        heading: :class:`str`
+            The heading to add to the output. This is only added
+            if the list of commands is greater than 0.
+        max_size: Optional[:class:`int`]
+            The max size to use for the gap between indents.
+            If unspecified, calls :meth:`get_max_size` on the
+            commands parameter.
+        """
+
+        if not commands:
+            return
+
+        self.paginator.add_line(heading)
+        max_size = max_size or self.get_max_size(commands)
+
+        get_width = discord.utils._string_width
+        for command in commands:
+            name = command.qualified_name
+            width = max_size - (get_width(name) - len(name))
+            entry = '{0}{1:<{width}} {2}'.format(self.indent * ' ', name, command.short_doc, width=width)
+            self.paginator.add_line(self.shorten_text(entry))
+
+    async def send_bot_help(self, mapping):
+        ctx = self.context
+        bot = ctx.bot
+
+        if bot.description:
+            # <description> portion
+            self.paginator.add_line(bot.description, empty=True)
+
+        no_category = '\u200b{0.no_category}:'.format(self)
+        def get_category(command, *, no_category=no_category):
+            cog = command.cog
+            return cog.qualified_name + ':' if cog is not None else no_category
+
+        filtered = await self.filter_commands(set(bot.walk_commands()), sort=True, key=get_category)
+        max_size = self.get_max_size(filtered)
+        to_iterate = itertools.groupby(filtered, key=get_category)
+
+        # Now we can add the commands to the page.
+        for category, commands in to_iterate:
+            commands = sorted(commands, key=lambda c: c.qualified_name) if self.sort_commands else list(commands)
+            self.add_indented_commands(commands, heading=category, max_size=max_size)
+
+        note = self.get_ending_note()
+        if note:
+            self.paginator.add_line()
+            self.paginator.add_line(note)
+
+        await self.send_pages()
+
 
 class TestCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self._original_help_command = bot.help_command
+        bot.help_command = HelpCommandWithSubcommands()
+        bot.help_command.cog = self
+
+    def cog_unload(self):
+        self.bot.help_command = self._original_help_command
 
     @commands.command()
     async def image_echo(self, ctx):
@@ -112,131 +160,6 @@ class TestCog(commands.Cog):
     async def bigemoji_error_handler(self, ctx, error):
         await ctx.send("Need valid Discord Custom Emoji")
 
-    @commands.command(hidden=True)
-    @commands.is_owner()
-    async def admin_help(self, ctx, *commands : str):
-        """Shows this message."""
-        _mentions_transforms = {
-            '@everyone': '@\u200beveryone',
-            '@here': '@\u200bhere'
-        }
-        
-        _mention_pattern = re.compile('|'.join(_mentions_transforms.keys()))
-
-        admin_custom_help_formatter = CustomHelpFormatter(show_hidden=True, show_check_failure=True)
-        bot = ctx.bot
-        destination = ctx.message.author if bot.pm_help else ctx.message.channel
-
-        def repl(obj):
-            return _mentions_transforms.get(obj.group(0), '')
-
-        # help by itself just lists our own commands.
-        if len(commands) == 0:
-            pages = await admin_custom_help_formatter.format_help_for(ctx, bot)
-        elif len(commands) == 1:
-            # try to see if it is a cog name
-            name = _mention_pattern.sub(repl, commands[0])
-            command = None
-            if name in bot.cogs:
-                command = bot.cogs[name]
-            else:
-                command = bot.all_commands.get(name)
-                if command is None:
-                    await destination.send(bot.command_not_found.format(name))
-                    return
-
-            pages = await admin_custom_help_formatter.format_help_for(ctx, command)
-        else:
-            name = _mention_pattern.sub(repl, commands[0])
-            command = bot.all_commands.get(name)
-            if command is None:
-                await destination.send(bot.command_not_found.format(name))
-                return
-
-            for key in commands[1:]:
-                try:
-                    key = _mention_pattern.sub(repl, key)
-                    command = command.all_commands.get(key)
-                    if command is None:
-                        await destination.send(bot.command_not_found.format(key))
-                        return
-                except AttributeError:
-                    await destination.send(bot.command_has_no_subcommands.format(command, key))
-                    return
-
-            pages = await admin_custom_help_formatter.format_help_for(ctx, command)
-
-        if bot.pm_help is None:
-            characters = sum(map(len, pages))
-            # modify destination based on length of pages.
-            if characters > 1000:
-                destination = ctx.message.author
-
-        for page in pages:
-            await destination.send(page)    
-
-    @commands.command()
-    async def help(self, ctx, *commands : str):
-        """Shows this message."""
-        _mentions_transforms = {
-            '@everyone': '@\u200beveryone',
-            '@here': '@\u200bhere'
-        }
-        
-        _mention_pattern = re.compile('|'.join(_mentions_transforms.keys()))
-
-        bot = ctx.bot
-        bot.formatter = CustomHelpFormatter()
-        destination = ctx.message.author if bot.pm_help else ctx.message.channel
-    
-        def repl(obj):
-            return _mentions_transforms.get(obj.group(0), '')
-    
-        # help by itself just lists our own commands.
-        if len(commands) == 0:
-            pages = await bot.formatter.format_help_for(ctx, bot)
-        elif len(commands) == 1:
-            # try to see if it is a cog name
-            name = _mention_pattern.sub(repl, commands[0])
-            command = None
-            if name in bot.cogs:
-                command = bot.cogs[name]
-            else:
-                command = bot.all_commands.get(name)
-                if command is None:
-                    await destination.send(bot.command_not_found.format(name))
-                    return
-    
-            pages = await bot.formatter.format_help_for(ctx, command)
-        else:
-            name = _mention_pattern.sub(repl, commands[0])
-            command = bot.all_commands.get(name)
-            if command is None:
-                await destination.send(bot.command_not_found.format(name))
-                return
-    
-            for key in commands[1:]:
-                try:
-                    key = _mention_pattern.sub(repl, key)
-                    command = command.all_commands.get(key)
-                    if command is None:
-                        await destination.send(bot.command_not_found.format(key))
-                        return
-                except AttributeError:
-                    await destination.send(bot.command_has_no_subcommands.format(command, key))
-                    return
-    
-            pages = await bot.formatter.format_help_for(ctx, command)
-    
-        if bot.pm_help is None:
-            characters = sum(map(len, pages))
-            # modify destination based on length of pages.
-            if characters > 1000:
-                destination = ctx.message.author
-    
-        for page in pages:
-            await destination.send(page)                
-
 def setup(bot):
-    bot.remove_command("help")
+    #bot.remove_command("help")
     bot.add_cog(TestCog(bot))

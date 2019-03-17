@@ -13,6 +13,9 @@ import operator
 import typing
 from collections import defaultdict
 import re
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
 
 class LString:
     def __init__(self):
@@ -770,6 +773,80 @@ class AikatsuCog(commands.Cog):
             discord_file = discord.File(jpg_data,filename)
             await ctx.send(file=discord_file)
             await ctx.send(embed=embed)
+    
+    @commands.command()
+    async def aikatsu_meme_generate(self, ctx, word_length : int = 15):
+        if word_length > 15:
+            word_length = 15
+        if word_length < 5:
+            word_length = 5
+        final_result = []
+        while len(final_result) < word_length :
+            max_sentence_length = word_length - len(final_result)
+            if max_sentence_length < 2 :
+                max_sentence_length = 2
+            if max_sentence_length > 15 :
+                max_sentence_length = 15
+            sentence_length = random.randint(2, max_sentence_length)
+            result = []
+            while len(result) < sentence_length or len(result) > 20  :
+                result = []
+                s = random.choice(list(self.uppercase_words_set))
+                result.extend(s)
+                while result[-1] and len(result) < max_sentence_length + 50:
+                    w = self.couple_words[(result[-2], result[-1])].get_random()
+                    result.append(w)
+            final_result.extend(result)
+        astr = " ".join(final_result)        
+        para = textwrap.wrap(astr, width=50)
+
+        episode = 0
+        if episode == 0 or episode > 178:
+            episode = str(random.randint(1,178))
+        else:
+            episode = str(episode)
+        frame_number_index = random.randint(0, len(self.aikatsu_screenshot_dict[episode])-1)
+        full_filename = self.aikatsu_screenshot_dict[episode][frame_number_index]["full_filename"]
+        filename = self.aikatsu_screenshot_dict[episode][frame_number_index]["filename"]
+        embed = discord.Embed(title="Aikatsu Screenshots")
+        minutes, seconds = divmod(frame_number_index*5, 60)
+        embed.add_field(name="Episode", value=episode)
+        embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
+
+        fillcolor = "white"
+        shadowcolor = "black"
+        with open(full_filename, "rb") as f:
+            jpg_data = f.read()
+            file_object = BytesIO(jpg_data)
+            image = Image.open(file_object)
+            width, height = image.size
+            draw = ImageDraw.Draw(image)
+            font = ImageFont.truetype('/usr/share/fonts/truetype/NotoSansCJKjp-Black.otf', 22)
+            w, h = draw.textsize(para[0], font=font)
+            pad = 10
+            current_h = height - 10 - len(para)*(h+pad)
+            outline = 2
+            for line in para:
+                w, h = draw.textsize(line, font=font)
+                draw.text(((width - w) / 2-outline, current_h-outline), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2+outline, current_h-outline), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2-outline, current_h+outline), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2+outline, current_h+outline), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2-outline, current_h), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2, current_h-outline), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2, current_h+outline), line, font=font, fill=shadowcolor)
+                draw.text(((width - w) / 2+outline, current_h), line, font=font, fill=shadowcolor)
+        
+                draw.text(((width - w) / 2, current_h), line, font=font, fill=fillcolor)
+                current_h += h + pad
+            image.save("test.jpg", optimize=True)
+            file_object2 = BytesIO()
+            image.save(file_object2, "JPEG", optimize=True)
+            file_object2.seek(0)
+            discord_file = discord.File(file_object2, filename)
+            await ctx.send(file=discord_file)
+            await ctx.send(embed=embed)
+
 
 # The setup fucntion below is neccesarry. Remember we give bot.add_cog() the name of the class in this case AikatsuCog.
 # When we load the cog, we use the name of the file.
