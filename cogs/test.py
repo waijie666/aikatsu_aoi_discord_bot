@@ -1,5 +1,4 @@
 from discord.ext import commands
-#from discord.ext.commands import HelpFormatter
 import sys, traceback
 from io import BytesIO
 import discord
@@ -9,6 +8,10 @@ import aiohttp
 import re
 from discord.ext.commands import DefaultHelpCommand
 import itertools
+import concurrent.futures
+from datetime import datetime
+from collections import Counter
+import json
 
 class HelpCommandWithSubcommands(DefaultHelpCommand):
 
@@ -94,6 +97,7 @@ class TestCog(commands.Cog):
         self._original_help_command = bot.help_command
         bot.help_command = HelpCommandWithSubcommands()
         bot.help_command.cog = self
+        self.bot.thread_executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
     def cog_unload(self):
         self.bot.help_command = self._original_help_command
@@ -159,6 +163,78 @@ class TestCog(commands.Cog):
     @bigemoji.error 
     async def bigemoji_error_handler(self, ctx, error):
         await ctx.send("Need valid Discord Custom Emoji")
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def read_message(self, ctx, channel : discord.TextChannel ):
+        start_time = datetime.now()
+        emoji_counter = Counter()
+        async for message in channel.history(limit=None, reverse=True):
+            message_content=message.content
+            emoji_list = list(set(re.findall(r'<:.*?:.*?>', message_content)))
+            emoji_counter += Counter(emoji_list)
+        end_time = datetime.now()
+        await ctx.send(f"{channel.mention} processed in {str(end_time-start_time)}")
+        await ctx.send(str(emoji_counter.most_common(30)))
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def emoji_counter_all_channel(self, ctx):
+        channel_list = [ channel for channel in ctx.guild.text_channels if channel.category_id not in [360581693549182986,406241715712950272]] 
+        server_emoji_list = [ str(emoji) for emoji in ctx.guild.emojis ]
+        all_start_time = datetime.now()
+        all_emoji_counter = Counter()
+        for channel in channel_list:
+            self.emoji_counter_channel = channel
+            start_time = datetime.now()
+            emoji_counter = Counter()
+            async for message in channel.history(limit=None, reverse=True):
+                message_content=message.content
+                self.emoji_counter_message = message
+                emoji_list = [ emoji for emoji in set(re.findall(r'<:.*?:.*?>', message_content)) if emoji in server_emoji_list ]
+                emoji_counter += Counter(emoji_list)
+            end_time = datetime.now()
+            await ctx.send(f"{ctx.author.mention} {channel.mention} processed in {str(end_time-start_time)}")
+            await ctx.send(str(emoji_counter.most_common(30)))
+            all_emoji_counter += emoji_counter
+        all_end_time = datetime.now()
+        self.bot.all_emoji_counter = all_emoji_counter
+        await ctx.send(f"{ctx.author.mention} All channels processed in {str(all_end_time-all_start_time)}")
+        await ctx.send(str(all_emoji_counter.most_common(30)))
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def emoji_counter_all_channel_status(self, ctx):
+        await ctx.send(f"{self.emoji_counter_channel.mention} {str(self.emoji_counter_message.created_at)}")
+
+    @commands.command()
+    async def emoji_counter_show(self, ctx):
+        emoji_counter_sorted = self.bot.all_emoji_counter.most_common()
+        await ctx.send(str(emoji_counter_sorted[:30])) 
+        await ctx.send(str(emoji_counter_sorted[30:])) 
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def emoji_counter_dump(self, ctx):
+        with open('emoji_counter.json','w+') as fp:
+            json.dump(self.bot.all_emoji_counter, fp)   
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def list_channel(self, ctx):
+        channel_list = [ channel for channel in ctx.guild.text_channels if channel.category_id not in [360581693549182986,406241715712950272]]
+        channel_mentions = [ channel.mention for channel in channel_list ]
+        channel_mentions_string = ' '.join(channel_mentions)
+        await ctx.send(channel_mentions_string)
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def list_emoji(self, ctx):
+        emoji_list = [ str(emoji) for emoji in ctx.guild.emojis ] 
+        await ctx.send(" ".join(emoji_list))
+
+
+
 
 def setup(bot):
     #bot.remove_command("help")

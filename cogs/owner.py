@@ -40,13 +40,17 @@ class OwnerCog(commands.Cog):
         Remember to use dot path. e.g: cogs.owner"""
 
         try:
-            self.bot.unload_extension(cog)
-            self.bot.load_extension(cog)
+            #self.bot.unload_extension(cog)
+            #self.bot.load_extension(cog)
+            self.bot.reload_extension(cog)
         except Exception as e:
             await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
             traceback.print_exc(file=sys.stdout)
         else:
             await ctx.send("**`ODAYAKAJANAI`**")
+
+    def cog_unload(self):
+        pass
 
 def setup(bot):
     bot.add_cog(OwnerCog(bot))

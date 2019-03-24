@@ -52,7 +52,7 @@ class AikatsuCog(commands.Cog):
         self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
 
     def init_aikatsu_stars_screenshots(self):
-        self.aistars_screenshot_dict = dict()
+        self.aistars_screenshot_dict = {"multiplier":1, "title":"Aikatsu Stars Screenshot"}
         
         with open("aistars_screenshot.txt","r") as f:
             fullstring = f.read()
@@ -69,7 +69,7 @@ class AikatsuCog(commands.Cog):
                 self.aistars_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
 
     def init_aikatsu_screenshots(self):
-        self.aikatsu_screenshot_dict = dict()
+        self.aikatsu_screenshot_dict = {"multiplier":5, "title":"Aikatsu Screenshot"}
 
         with open("aikatsu_screenshot.txt","r") as f:
             fullstring = f.read()
@@ -94,8 +94,9 @@ class AikatsuCog(commands.Cog):
                     self.add_message(line)
 
     def add_message(self, message):
-        message = re.sub(r'\s[-\"]', '', message).strip()
-        words_prefiltered = message.split()
+        #message = re.sub(r'\s[-\"]', '', message).strip()
+        words_prefiltered = message.strip().split()
+        #words = words_prefiltered
         words = list()
         for word in words_prefiltered:
             try:
@@ -666,7 +667,7 @@ class AikatsuCog(commands.Cog):
                 max_sentence_length = 15
             sentence_length = random.randint(2, max_sentence_length) 
             result = []
-            while len(result) < sentence_length :
+            while len(result) < sentence_length or not ( result[-2].endswith(".") or result[-2].endswith("!") or result[-2].endswith("?") or result[-2].endswith("~")):
                 result = []			
                 s = random.choice(list(self.uppercase_words_set))
                 result.extend(s)
@@ -750,7 +751,7 @@ class AikatsuCog(commands.Cog):
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
         with open(full_filename, "rb") as f:
-            jpg_data = f.read()
+            jpg_data = BytesIO(f.read())
             discord_file = discord.File(jpg_data,filename)
             await ctx.send(file=discord_file)
             await ctx.send(embed=embed)
@@ -769,7 +770,7 @@ class AikatsuCog(commands.Cog):
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
         with open(full_filename, "rb") as f:
-            jpg_data = f.read()
+            jpg_data = BytesIO(f.read())
             discord_file = discord.File(jpg_data,filename)
             await ctx.send(file=discord_file)
             await ctx.send(embed=embed)
@@ -785,33 +786,41 @@ class AikatsuCog(commands.Cog):
             max_sentence_length = word_length - len(final_result)
             if max_sentence_length < 2 :
                 max_sentence_length = 2
-            if max_sentence_length > 15 :
-                max_sentence_length = 15
+            if max_sentence_length > 10 :
+                max_sentence_length = 10
             sentence_length = random.randint(2, max_sentence_length)
             result = []
-            while len(result) < sentence_length or len(result) > 20  :
+            while len(result) < sentence_length or len(result) > 15 or not ( result[-2].endswith(".") or result[-2].endswith("!") or result[-2].endswith("?") or result[-2].endswith("~")) :
                 result = []
                 s = random.choice(list(self.uppercase_words_set))
                 result.extend(s)
-                while result[-1] and len(result) < max_sentence_length + 50:
+                while result[-1] and len(result) < max_sentence_length + 50 :
                     w = self.couple_words[(result[-2], result[-1])].get_random()
                     result.append(w)
             final_result.extend(result)
-        astr = " ".join(final_result)        
-        para = textwrap.wrap(astr, width=50)
-
-        episode = 0
-        if episode == 0 or episode > 178:
-            episode = str(random.randint(1,178))
-        else:
-            episode = str(episode)
-        frame_number_index = random.randint(0, len(self.aikatsu_screenshot_dict[episode])-1)
-        full_filename = self.aikatsu_screenshot_dict[episode][frame_number_index]["full_filename"]
-        filename = self.aikatsu_screenshot_dict[episode][frame_number_index]["filename"]
-        embed = discord.Embed(title="Aikatsu Screenshots")
-        minutes, seconds = divmod(frame_number_index*5, 60)
+        meme_text = " ".join(final_result)        
+        para = textwrap.wrap(meme_text, width=50)
+        """
+        aikatsu_choice = random.choices(["aikatsu", "aikatsu_stars"], [178, 100])
+        if aikatsu_choice[0] == "aikatsu" :
+            episode = str(random.randint(1,178)) 
+            screenshot_dict = self.aikatsu_screenshot_dict
+            title = "Aikatsu Screenshot"
+            multiplier = 5
+        elif aikatsu_choice[0] == "aikatsu_stars" :
+            episode = str(random.randint(1,100))
+            screenshot_dict = self.aistars_screenshot_dict
+            title = "Aikatsu Stars Screenshot"
+            multiplier = 1
+        """
+        screenshot_dict, episode, frame_number_index = self.get_screenshot_dict(True)
+        full_filename = screenshot_dict[episode][frame_number_index]["full_filename"]
+        filename = screenshot_dict[episode][frame_number_index]["filename"]
+        embed = discord.Embed(title= screenshot_dict["title"])
+        minutes, seconds = divmod(frame_number_index* screenshot_dict["multiplier"], 60)
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
+        embed.add_field(name="Meme Text", value=meme_text, inline=False)
 
         fillcolor = "white"
         shadowcolor = "black"
@@ -821,9 +830,9 @@ class AikatsuCog(commands.Cog):
             image = Image.open(file_object)
             width, height = image.size
             draw = ImageDraw.Draw(image)
-            font = ImageFont.truetype('/usr/share/fonts/truetype/NotoSansCJKjp-Black.otf', 22)
+            font = ImageFont.truetype('/usr/share/fonts/truetype/NotoSansCJKjp-Black.otf', 21)
             w, h = draw.textsize(para[0], font=font)
-            pad = 10
+            pad = 5
             current_h = height - 10 - len(para)*(h+pad)
             outline = 2
             for line in para:
@@ -846,6 +855,58 @@ class AikatsuCog(commands.Cog):
             discord_file = discord.File(file_object2, filename)
             await ctx.send(file=discord_file)
             await ctx.send(embed=embed)
+
+    @commands.command()
+    async def aikatsu_screenshot_collage(self, ctx, horizontal_count : int = 5, vertical_count : int = 5):
+        if horizontal_count > 10 :
+            horizontal_count = 10 
+        elif horizontal_count < 1 :
+            horizontal_count = 1
+        if vertical_count > 10 :
+            vertical_count = 10 
+        elif vertical_count < 1 :
+            vertical_count = 1  
+        total_count = horizontal_count*vertical_count
+        screenshots = list()
+        for i in range(total_count):
+           screenshots.append(self.get_screenshot_dict())
+
+        total_width=640*horizontal_count
+        total_height=360*vertical_count
+
+        result = Image.new('RGB', (total_width, total_height))
+        count = 0 
+        current_horizontal_position = 0
+        current_vertical_position = 0
+        for screenshot in screenshots:
+            count += 1
+            if count > horizontal_count:
+                count = 1
+                current_horizontal_position = 0 
+                current_vertical_position += 360
+            with Image.open(screenshot["full_filename"]) as image:
+                result.paste(im=image, box=(current_horizontal_position, current_vertical_position))
+            current_horizontal_position += 640
+          
+        file_object2 = BytesIO()
+        result.save(file_object2, "JPEG", optimize=True)
+        file_object2.seek(0)
+        discord_file = discord.File(file_object2, "test.jpg")
+        await ctx.send(file=discord_file)
+
+    def get_screenshot_dict(self, get_frame_number_index=False):
+        aikatsu_choice = random.choices(["aikatsu", "aikatsu_stars"], [178, 100])
+        if aikatsu_choice[0] == "aikatsu" :
+            episode = str(random.randint(1,178))
+            screenshot_dict = self.aikatsu_screenshot_dict
+        elif aikatsu_choice[0] == "aikatsu_stars" :
+            episode = str(random.randint(1,100))
+            screenshot_dict = self.aistars_screenshot_dict
+        frame_number_index = random.randint(0, len(screenshot_dict[episode])-1)
+        if get_frame_number_index:
+            return screenshot_dict, episode, frame_number_index
+        else:
+            return screenshot_dict[episode][frame_number_index]
 
 
 # The setup fucntion below is neccesarry. Remember we give bot.add_cog() the name of the class in this case AikatsuCog.
