@@ -580,11 +580,10 @@ class AikatsuCog(commands.Cog):
     @commands.command()
     async def next_episode(self, ctx):
         jp_timezone = pytz.timezone("Asia/Tokyo")
-        first_week_aikatsu_2019 = datetime.fromisoformat(
-            "2019-01-03 18:25+09:00"
-        ).astimezone(jp_timezone)
         current_time = datetime.now(jp_timezone)
-        next_aikatsu_datetime = first_week_aikatsu_2019
+        weekday_today = current_time.weekday()
+        weekday_delta = timedelta(days=(3 - weekday_today))
+        next_aikatsu_datetime = (current_time + weekday_delta).replace(hour=18,minute=25,second=0)
         airing = False
 
         if self.airtime_datetime is not None:
