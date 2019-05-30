@@ -47,6 +47,7 @@ class AikatsuCog(commands.Cog):
         try:
             self.init_aikatsu_stars_screenshots()
             self.init_aikatsu_screenshots()
+            self.init_aikatsu_friends_screenshots()
         except:
             print("Screenshot initialization failed. Screenshots may not work in this environment")
         self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
@@ -84,11 +85,29 @@ class AikatsuCog(commands.Cog):
                 if episode not in self.aikatsu_screenshot_dict:
                     self.aikatsu_screenshot_dict[episode] = list()
                 self.aikatsu_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
+    
+    def init_aikatsu_friends_screenshots(self):
+        self.aifure_screenshot_dict = {"multiplier":5, "title":"Aikatsu Friends Screenshot"}
+
+        with open("aikatsu_friends_screenshot.txt","r") as f:
+            fullstring = f.read()
+            lines = fullstring.split("\n")
+            for line in lines:
+                episode_and_framenumber = line.split("screenshot")
+                if len(episode_and_framenumber) < 2:
+                    continue
+                episode = str(int(episode_and_framenumber[0]))
+                frame_number = int(episode_and_framenumber[1].split(".")[0])
+                full_filename = "/backup/aifure_screenshot/" + line
+                if episode not in self.aifure_screenshot_dict:
+                    self.aifure_screenshot_dict[episode] = list()
+                self.aifure_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
+
 
     def init_aikatsu_markov(self):
         self.couple_words = defaultdict(LString)
         self.uppercase_words_set = set()
-        for file in [ "aikatsu_og_subs.txt", "aikatsu_stars_subs.txt" ] :
+        for file in [ "aikatsu_og_subs.txt", "aikatsu_stars_subs.txt" , "aikatsu_friends_subs.txt" ] :
             with open(file, 'r') as f:
                 for line in f:
                     self.add_message(line)
@@ -773,9 +792,28 @@ class AikatsuCog(commands.Cog):
             discord_file = discord.File(jpg_data,filename)
             await ctx.send(file=discord_file)
             await ctx.send(embed=embed)
+
+    @commands.command()
+    async def aikatsu_friends_screenshot(self, ctx, episode: int=0):
+        if episode == 0 or episode > 50:
+            episode = str(random.randint(1,50))
+        else:
+            episode = str(episode)
+        frame_number_index = random.randint(0, len(self.aifure_screenshot_dict[episode])-1)
+        full_filename = self.aifure_screenshot_dict[episode][frame_number_index]["full_filename"]
+        filename = self.aifure_screenshot_dict[episode][frame_number_index]["filename"]
+        embed = discord.Embed(title="Aikatsu Friends Screenshots")
+        minutes, seconds = divmod(frame_number_index*5, 60)
+        embed.add_field(name="Episode", value=episode)
+        embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
+        with open(full_filename, "rb") as f:
+            jpg_data = BytesIO(f.read())
+            discord_file = discord.File(jpg_data,filename)
+            await ctx.send(file=discord_file)
+            await ctx.send(embed=embed)
     
     @commands.command()
-    async def aikatsu_meme_generate(self, ctx, word_length : int = 15):
+    async def aikatsu_meme_generate(self, ctx, word_length : int = 15, choice=None):
         if word_length > 15:
             word_length = 15
         if word_length < 5:
@@ -812,7 +850,7 @@ class AikatsuCog(commands.Cog):
             title = "Aikatsu Stars Screenshot"
             multiplier = 1
         """
-        screenshot_dict, episode, frame_number_index = self.get_screenshot_dict(True)
+        screenshot_dict, episode, frame_number_index = self.get_screenshot_dict(True, choice=choice)
         full_filename = screenshot_dict[episode][frame_number_index]["full_filename"]
         filename = screenshot_dict[episode][frame_number_index]["filename"]
         embed = discord.Embed(title= screenshot_dict["title"])
@@ -847,7 +885,6 @@ class AikatsuCog(commands.Cog):
         
                 draw.text(((width - w) / 2, current_h), line, font=font, fill=fillcolor)
                 current_h += h + pad
-            image.save("test.jpg", optimize=True)
             file_object2 = BytesIO()
             image.save(file_object2, "JPEG", optimize=True)
             file_object2.seek(0)
@@ -856,7 +893,7 @@ class AikatsuCog(commands.Cog):
             await ctx.send(embed=embed)
 
     @commands.command()
-    async def aikatsu_screenshot_collage(self, ctx, horizontal_count : int = 5, vertical_count : int = 5):
+    async def aikatsu_screenshot_collage(self, ctx, horizontal_count : int = 5, vertical_count : int = 5, choice=None):
         if horizontal_count > 10 :
             horizontal_count = 10 
         elif horizontal_count < 1 :
@@ -868,7 +905,7 @@ class AikatsuCog(commands.Cog):
         total_count = horizontal_count*vertical_count
         screenshots = list()
         for i in range(total_count):
-           screenshots.append(self.get_screenshot_dict())
+           screenshots.append(self.get_screenshot_dict(choice=choice))
 
         total_width=640*horizontal_count
         total_height=360*vertical_count
@@ -893,14 +930,20 @@ class AikatsuCog(commands.Cog):
         discord_file = discord.File(file_object2, "test.jpg")
         await ctx.send(file=discord_file)
 
-    def get_screenshot_dict(self, get_frame_number_index=False):
-        aikatsu_choice = random.choices(["aikatsu", "aikatsu_stars"], [178, 100])
+    def get_screenshot_dict(self, get_frame_number_index=False, choice=None):
+        if choice not in ["aikatsu","aikatsu_stars","aikatsu_friends"]:
+            aikatsu_choice = random.choices(["aikatsu", "aikatsu_stars","aikatsu_friends"], [178, 100, 50])
+        else:
+            aikatsu_choice = [choice] 
         if aikatsu_choice[0] == "aikatsu" :
             episode = str(random.randint(1,178))
             screenshot_dict = self.aikatsu_screenshot_dict
         elif aikatsu_choice[0] == "aikatsu_stars" :
             episode = str(random.randint(1,100))
             screenshot_dict = self.aistars_screenshot_dict
+        elif aikatsu_choice[0] == "aikatsu_friends" :
+            episode = str(random.randint(1,50))
+            screenshot_dict = self.aifure_screenshot_dict
         frame_number_index = random.randint(0, len(screenshot_dict[episode])-1)
         if get_frame_number_index:
             return screenshot_dict, episode, frame_number_index
