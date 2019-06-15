@@ -139,6 +139,7 @@ class AikatsuCog(commands.Cog):
             reader = csv.DictReader(csvfile, fieldnames=fieldnames)
             self.idol_dict_list = list(reader)
         self.bot.apscheduler.add_job(self.send_birthday_message, trigger="cron",minute="0",hour="0",replace_existing=True,id="birthday_post", jobstore="default")
+        self.bot.apscheduler.add_job(self.change_client_presence, trigger="cron", minute="*/5", replace_existing=True,id="change_client_presence",jobstore="default")
 
     def init_songs(self):
         self.songs_dict = dict()
@@ -201,6 +202,29 @@ class AikatsuCog(commands.Cog):
                 self.N_dict_list.append(card_dict)
             elif card_dict["rarity"] == "N+":
                 self.Nplus_dict_list.append(card_dict)
+
+    async def change_client_presence(self):
+        jp_timezone = pytz.timezone("Asia/Tokyo")
+        current_time = datetime.now(jp_timezone)
+        today = current_time.date()
+        current_year = today.year
+        idol_dict_list = list(self.idol_dict_list)
+        for idol_dict in idol_dict_list:
+            birthday_current_year = datetime.strptime(str(current_year) + idol_dict["birthday"],"%Y%B %d").date()
+            if birthday_current_year < today :
+                idol_dict["next_birthday"] = birthday_current_year.replace(year=current_year+1)
+            else:
+                idol_dict["next_birthday"] = birthday_current_year
+
+        sorted_idol_dict_list = sorted(idol_dict_list, key=operator.itemgetter("next_birthday"))
+        filtered_idol_dict_list  = [ idol_dict for idol_dict in sorted_idol_dict_list if idol_dict["next_birthday"] == today ]
+
+        if len(filtered_idol_dict_list) > 0:
+            client_presence_choice = random.choice(filtered_idol_dict_list)['name'] +"'s birthday"
+        else:
+            client_presence_list = ["Aikatsu Friends", "Aikatsu Stars", "Aikatsu"]
+            client_presence_choice = random.choice(client_presence_list)
+        await self.bot.change_presence(activity=discord.Game(name=client_presence_choice))
 
     async def send_birthday_message(self):
         jp_timezone = pytz.timezone("Asia/Tokyo")

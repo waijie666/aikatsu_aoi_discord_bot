@@ -54,6 +54,8 @@ bot.apscheduler = AsyncIOScheduler(
 bot.apscheduler.add_jobstore(
     "sqlalchemy", alias="sqlite", url="sqlite:///scheduler.sqlite"
 )
+
+"""
 bot.apscheduler.add_job(
     change_client_presence,
     trigger="cron",
@@ -61,6 +63,7 @@ bot.apscheduler.add_job(
     replace_existing=True,
     jobstore="default",
 )
+"""
 
 
 async def message_send(channel_id, message):
