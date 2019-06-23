@@ -621,12 +621,22 @@ class AikatsuCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
-    async def next_episode(self, ctx):
+    async def next_episode(self, ctx, anime : str = "aikatsu"):
+        anime_dict = dict()
+        anime_dict["aikatsu"] = {"day":3, "hour":16, "minute":25}
+        anime_dict["prichan"] = {"day":6, "hour":10, "minute":00}
+        anime_dict["precure"] = {"day":6, "hour":8, "minute":30}
+        anime = anime.casefold()
+        if anime == "help":
+            await ctx.send("List of valid animes: " + " ".join([*anime_dict]))
+            return
+        elif anime not in anime_dict:
+            anime = "aikatsu"
         jp_timezone = pytz.timezone("Asia/Tokyo")
         current_time = datetime.now(jp_timezone)
         weekday_today = current_time.weekday()
-        weekday_delta = timedelta(days=(3 - weekday_today))
-        next_aikatsu_datetime = (current_time + weekday_delta).replace(hour=18,minute=25,second=0)
+        weekday_delta = timedelta(days=(anime_dict[anime]["day"] - weekday_today))
+        next_aikatsu_datetime = (current_time + weekday_delta).replace(hour=anime_dict[anime]["hour"],minute=anime_dict[anime]["minute"],second=0)
         airing = False
 
         if self.airtime_datetime is not None:
@@ -645,7 +655,7 @@ class AikatsuCog(commands.Cog):
                 airing = True
 
         embed = discord.Embed(
-            title="Aikatsu Next Episode", timestamp=next_aikatsu_datetime
+            title=anime+" Next Episode", timestamp=next_aikatsu_datetime
         )
         fmt = "%Y-%m-%d %H:%M:%S %Z%z"
         embed.add_field(

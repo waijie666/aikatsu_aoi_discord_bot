@@ -238,63 +238,6 @@ class TestCog(commands.Cog):
         with open('emoji_counter.json','w+') as fp:
             json.dump(self.bot.all_emoji_counter, fp)
 
-    """
-    @commands.command(hidden=True)
-    @commands.is_owner()
-    async def emoji_counter_all_channel(self, ctx):
-        guild_id = str(ctx.guild.id)
-        guild = self.bot.get_guild(int(guild_id))
-        channel_list = [ channel for channel in guild.text_channels if channel.category_id not in [360581693549182986,406241715712950272]] 
-        server_emoji_list = [ str(emoji) for emoji in guild.emojis ]
-        all_start_time = datetime.now()
-        all_emoji_counter = Counter()
-        local_timezone = datetime.now().astimezone().tzinfo
-        for channel in channel_list:
-            channel_id = str(channel.id)
-            self.emoji_counter_channel = channel
-            start_time = datetime.now()
-            if guild_id in self.bot.all_emoji_counter :
-                if channel_id not in self.bot.all_emoji_counter[guild_id]:
-                    self.bot.all_emoji_counter[guild_id][channel_id] = dict()
-                    self.bot.all_emoji_counter[guild_id][channel_id]["count"] = Counter()
-            else:
-               self.bot.all_emoji_counter[guild_id] = dict()
-               self.bot.all_emoji_counter[guild_id][channel_id] = dict()
-               self.bot.all_emoji_counter[guild_id][channel_id]["count"] = Counter()
-            if "after_timestamp" in self.bot.all_emoji_counter[guild_id][channel_id]:
-                after = datetime.fromtimestamp(self.bot.all_emoji_counter[guild_id][channel_id]["after_timestamp"], tz=timezone.utc).replace(tzinfo=None)
-            else:
-                after = None
-            emoji_counter = Counter()
-            to_be_saved_after = None
-            single_latest_message = await channel.history(limit=1).flatten()
-            if len(single_latest_message) > 0:
-                to_be_saved_after = single_latest_message[0].created_at.replace(tzinfo=timezone.utc).timestamp()
-            async for message in channel.history(limit=None, oldest_first=False, after=after):
-                message_content=message.content
-                self.emoji_counter_message = message
-                if message.author.bot :
-                    continue
-                emoji_list = [ emoji for emoji in set(re.findall(r'<.*?:.*?:.*?>', message_content)) if emoji in server_emoji_list ]
-                emoji_counter += Counter(emoji_list)
-            end_time = datetime.now()
-            await ctx.author.send(f"{ctx.author.mention} {channel.mention} processed in {str(end_time-start_time)}")
-            if to_be_saved_after:
-                self.bot.all_emoji_counter[guild_id][channel_id]["after_timestamp"] = to_be_saved_after
-            self.bot.all_emoji_counter[guild_id][channel_id]["count"] = Counter(self.bot.all_emoji_counter[guild_id][channel_id]["count"]) + emoji_counter
-            await ctx.author.send(str(self.bot.all_emoji_counter[guild_id][channel_id]["count"].most_common(30)))
-        all_end_time = datetime.now()
-        self.bot.all_emoji_counter[guild_id]["all_channel"] = dict()
-        self.bot.all_emoji_counter[guild_id]["all_channel"]["count"] = Counter()
-        self.bot.all_emoji_counter[guild_id]["all_channel"]["updated_time"] = all_start_time.timestamp()
-        for channel in channel_list:
-            self.bot.all_emoji_counter[guild_id]["all_channel"]["count"] += self.bot.all_emoji_counter[guild_id][str(channel.id)]["count"]
-        await ctx.send(f"{ctx.author.mention} All channels processed in {str(all_end_time-all_start_time)}")
-        await ctx.send(str(self.bot.all_emoji_counter[guild_id]["all_channel"]["count"].most_common(30)))
-        with open('emoji_counter.json','w+') as fp:
-            json.dump(self.bot.all_emoji_counter, fp)
-    """
-
     @commands.command(hidden=True)
     @commands.is_owner()
     async def emoji_counter_all_channel_new(self, ctx):
