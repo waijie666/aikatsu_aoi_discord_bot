@@ -67,7 +67,7 @@ class AikatsuCog(commands.Cog):
                 full_filename = "/screenshots/aistars/" + line
                 if episode not in self.aistars_screenshot_dict:
                     self.aistars_screenshot_dict[episode] = list()
-                self.aistars_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
+                self.aistars_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number, "web_url": "https://dream-wonderland.com/images/aikatsu_stars/" + line})
 
     def init_aikatsu_screenshots(self):
         self.aikatsu_screenshot_dict = {"multiplier":5, "title":"Aikatsu Screenshot"}
@@ -84,7 +84,7 @@ class AikatsuCog(commands.Cog):
                 full_filename = "/backup/aikatsu_screenshot/" + line
                 if episode not in self.aikatsu_screenshot_dict:
                     self.aikatsu_screenshot_dict[episode] = list()
-                self.aikatsu_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
+                self.aikatsu_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number, "web_url": "https://dream-wonderland.com/images/aikatsu/" + line})
     
     def init_aikatsu_friends_screenshots(self):
         self.aifure_screenshot_dict = {"multiplier":5, "title":"Aikatsu Friends Screenshot"}
@@ -101,8 +101,7 @@ class AikatsuCog(commands.Cog):
                 full_filename = "/backup/aifure_screenshot/" + line
                 if episode not in self.aifure_screenshot_dict:
                     self.aifure_screenshot_dict[episode] = list()
-                self.aifure_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number})
-
+                self.aifure_screenshot_dict[episode].append({"full_filename":full_filename, "filename":line, "frame_number": frame_number, "web_url": "https://dream-wonderland.com/images/aikatsu_friends/" + line})
 
     def init_aikatsu_markov(self):
         self.couple_words = defaultdict(LString)
@@ -540,6 +539,12 @@ class AikatsuCog(commands.Cog):
             gacha_rarity_dict = await self.bot.loop.run_in_executor(self.bot.process_executor, self.gacha_until_PR_worker , N_rate, PR_rate)
         card_list = self.pick_cards(["PR"])
         rarity_counter = gacha_rarity_dict
+        star_used = 25
+        if "SR" in gacha_rarity_dict:
+            star_used = star_used + gacha_rarity_dict["SR"]*25
+        if "R" in gacha_rarity_dict:
+            star_used = star_used + gacha_rarity_dict["R"]*25
+
         embed = discord.Embed(
             title="Photokatsu Gacha Results",
             description=f"Rates: PR {PR_rate}%, SR 20%, R {N_rate}%",
@@ -550,6 +555,7 @@ class AikatsuCog(commands.Cog):
         embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar_url)
         embed.add_field(name="Requester", value=ctx.author.mention)
         embed.add_field(name="Counter", value=dict(rarity_counter))
+        embed.add_field(name="Stars Used", value=str(star_used)+":star:")
         card_string_list = list()
         for card in card_list:
             if card["rarity"].startswith("PR"):
@@ -623,7 +629,7 @@ class AikatsuCog(commands.Cog):
     @commands.command()
     async def next_episode(self, ctx, anime : str = "aikatsu"):
         anime_dict = dict()
-        anime_dict["aikatsu"] = {"day":3, "hour":16, "minute":25}
+        anime_dict["aikatsu"] = {"day":3, "hour":18, "minute":25}
         anime_dict["prichan"] = {"day":6, "hour":10, "minute":00}
         anime_dict["precure"] = {"day":6, "hour":8, "minute":30}
         anime = anime.casefold()
@@ -887,7 +893,7 @@ class AikatsuCog(commands.Cog):
         screenshot_dict, episode, frame_number_index = self.get_screenshot_dict(True, choice=choice)
         full_filename = screenshot_dict[episode][frame_number_index]["full_filename"]
         filename = screenshot_dict[episode][frame_number_index]["filename"]
-        embed = discord.Embed(title= screenshot_dict["title"])
+        embed = discord.Embed(title= screenshot_dict["title"] + " (Click to get original image)", url = screenshot_dict[episode][frame_number_index]["web_url"])
         minutes, seconds = divmod(frame_number_index* screenshot_dict["multiplier"], 60)
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")

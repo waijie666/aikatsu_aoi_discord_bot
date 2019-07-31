@@ -115,6 +115,25 @@ class TestCog(commands.Cog):
        if message.channel.id == 579657195780571137:
            await self.bot.get_channel(326116971504467969).send(message.content)
 
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+       if before.author.bot:
+           return
+       if before.guild.id != 326048564965015552:
+           return
+       if before.content == after.content:
+           return
+       logging_channel = self.bot.get_channel(457750402448752650)
+       embed = discord.Embed(title="Edited Message")
+       embed.set_author(name=str(before.author),icon_url=str(before.author.avatar_url))
+       embed.timestamp = datetime.now(timezone.utc)
+       embed.add_field(name="Before", value=before.content, inline=False)
+       embed.add_field(name="After", value=after.content, inline=False)
+       embed.add_field(name="Message Information", value="User " + before.author.mention + " in " + before.channel.mention, inline=False)
+       embed.add_field(name="Message URL", value=before.jump_url, inline=False)
+       message = await logging_channel.send(embed=embed)
+       await message.delete(delay=36000)
+
     @commands.command()
     async def image_echo(self, ctx):
         if len(ctx.message.attachments) > 0 :
@@ -299,7 +318,7 @@ class TestCog(commands.Cog):
         elif member is not None:
             emoji_counter_sorted = Counter(self.bot.all_emoji_counter[guild_id]["user"][str(member.id)]).most_common()
             embed.add_field(name="User",value=member.mention, inline=False)
-        elif emoji is not None:
+        elif emoji is not None :
             emoji_id = str(emoji.id)
             emoji_counter_for_this_emoji = Counter()
             for key, value in self.bot.all_emoji_counter[guild_id]["user"].items() : 
@@ -307,14 +326,16 @@ class TestCog(commands.Cog):
                 if user is None:
                     continue
                 try:
+                    if value[emoji_id] == 0:
+                        continue
                     emoji_counter_for_this_emoji[str(user)] = value[emoji_id]
                 except:
                     pass
             emoji_counter_sorted = emoji_counter_for_this_emoji.most_common(40)
             embed.add_field(name="Emoji",value=str(emoji), inline=False)
-        if emoji is None:
+        if emoji is None :
             emoji_counter_sorted_2 = copy.deepcopy(emoji_counter_sorted)
-            for count, item in enumerate(emoji_counter_sorted_2):
+            for count, item in reversed(list(enumerate(emoji_counter_sorted_2))):
                 emoji_to_be_deleted = self.bot.get_emoji(int(item[0]))
                 if emoji_to_be_deleted is None:
                     emoji_counter_sorted.pop(count)
@@ -350,11 +371,9 @@ class TestCog(commands.Cog):
     @commands.is_owner()
     async def list_emoji(self, ctx):
         emoji_list = [ str(emoji) for emoji in ctx.guild.emojis ] 
-        await ctx.send(" ".join(emoji_list))
-        print(" ".join(emoji_list))
-
-
-
+        emoji_list_chunks = self.chunks(emoji_list, 30)
+        for emoji_list in emoji_list_chunks:
+            await ctx.send(" ".join(emoji_list))
 
 def setup(bot):
     #bot.remove_command("help")
