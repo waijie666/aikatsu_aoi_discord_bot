@@ -127,8 +127,10 @@ class TestCog(commands.Cog):
        embed = discord.Embed(title="Edited Message")
        embed.set_author(name=str(before.author),icon_url=str(before.author.avatar_url))
        embed.timestamp = datetime.now(timezone.utc)
-       embed.add_field(name="Before", value=before.content, inline=False)
-       embed.add_field(name="After", value=after.content, inline=False)
+       if before.content :
+           embed.add_field(name="Before", value=before.content, inline=False)
+       if after.content :
+           embed.add_field(name="After", value=after.content, inline=False)
        embed.add_field(name="Message Information", value="User " + before.author.mention + " in " + before.channel.mention, inline=False)
        embed.add_field(name="Message URL", value=before.jump_url, inline=False)
        message = await logging_channel.send(embed=embed)
