@@ -835,8 +835,8 @@ class AikatsuCog(commands.Cog):
 
     @commands.command()
     async def aikatsu_friends_screenshot(self, ctx, episode: int=0):
-        if episode == 0 or episode > 50:
-            episode = str(random.randint(1,50))
+        if episode == 0 or episode > 70:
+            episode = str(random.randint(1,70))
         else:
             episode = str(episode)
         frame_number_index = random.randint(0, len(self.aifure_screenshot_dict[episode])-1)
@@ -972,7 +972,7 @@ class AikatsuCog(commands.Cog):
 
     def get_screenshot_dict(self, get_frame_number_index=False, choice=None):
         if choice not in ["aikatsu","aikatsu_stars","aikatsu_friends"]:
-            aikatsu_choice = random.choices(["aikatsu", "aikatsu_stars","aikatsu_friends"], [178, 100, 50])
+            aikatsu_choice = random.choices(["aikatsu", "aikatsu_stars","aikatsu_friends"], [178, 100, 70])
         else:
             aikatsu_choice = [choice] 
         if aikatsu_choice[0] == "aikatsu" :
@@ -982,7 +982,7 @@ class AikatsuCog(commands.Cog):
             episode = str(random.randint(1,100))
             screenshot_dict = self.aistars_screenshot_dict
         elif aikatsu_choice[0] == "aikatsu_friends" :
-            episode = str(random.randint(1,50))
+            episode = str(random.randint(1,70))
             screenshot_dict = self.aifure_screenshot_dict
         frame_number_index = random.randint(0, len(screenshot_dict[episode])-1)
         if get_frame_number_index:

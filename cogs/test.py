@@ -341,6 +341,7 @@ class TestCog(commands.Cog):
                 emoji_to_be_deleted = self.bot.get_emoji(int(item[0]))
                 if emoji_to_be_deleted is None:
                     emoji_counter_sorted.pop(count)
+            embed.add_field(name="Total Count", value=str(sum(emoji_tuple[1] for emoji_tuple in emoji_counter_sorted)), inline=False)
             
         emoji_counter_chunks = self.chunks(emoji_counter_sorted, 20)
         for chunk in emoji_counter_chunks:
