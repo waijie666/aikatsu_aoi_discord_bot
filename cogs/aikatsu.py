@@ -108,7 +108,9 @@ class AikatsuCog(commands.Cog):
         self.uppercase_words_set = set()
         for file in [ "aikatsu_og_subs.txt", "aikatsu_stars_subs.txt" , "aikatsu_friends_subs.txt" ] :
             with open(file, 'r') as f:
-                for line in f:
+                contents = f.read()
+                contents_list = contents.splitlines()
+                for line in contents_list:
                     self.add_message(line)
 
     def add_message(self, message):
@@ -725,11 +727,11 @@ class AikatsuCog(commands.Cog):
                 max_sentence_length = 15
             sentence_length = random.randint(2, max_sentence_length) 
             result = []
-            while len(result) < sentence_length or not ( result[-2].endswith(".") or result[-2].endswith("!") or result[-2].endswith("?") or result[-2].endswith("~")):
+            while len(result) < sentence_length or len(result) > 30 or not ( result[-2].endswith(".") or result[-2].endswith("!") or result[-2].endswith("?") or result[-2].endswith("~")):
                 result = []			
                 s = random.choice(list(self.uppercase_words_set))
                 result.extend(s)
-                while result[-1] and len(result) < max_sentence_length + 50:
+                while result[-1] and len(result) < max_sentence_length + 20:
                     w = self.couple_words[(result[-2], result[-1])].get_random()
                     result.append(w)
             final_result.extend(result)
@@ -856,8 +858,8 @@ class AikatsuCog(commands.Cog):
     async def aikatsu_meme_generate(self, ctx, word_length : int = 15, choice=None):
         if word_length > 15:
             word_length = 15
-        if word_length < 5:
-            word_length = 5
+        if word_length < 2:
+            word_length = 2
         final_result = []
         while len(final_result) < word_length :
             max_sentence_length = word_length - len(final_result)
@@ -871,7 +873,7 @@ class AikatsuCog(commands.Cog):
                 result = []
                 s = random.choice(list(self.uppercase_words_set))
                 result.extend(s)
-                while result[-1] and len(result) < max_sentence_length + 50 :
+                while result[-1] and len(result) < max_sentence_length + 20 :
                     w = self.couple_words[(result[-2], result[-1])].get_random()
                     result.append(w)
             final_result.extend(result)

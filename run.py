@@ -18,6 +18,8 @@ import concurrent.futures
 format = "%(asctime)s:%(name)s.%(levelname)s:%(message)s"
 logging.basicConfig(level=logging.INFO, format=format)
 
+#logger = logging.getLogger('discord')
+#logger.setLevel(logging.DEBUG)
 
 class NoRunningFilter(logging.Filter):
     def filter(self, record):

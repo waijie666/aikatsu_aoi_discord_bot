@@ -14,6 +14,8 @@ from collections import Counter
 import json
 import typing
 import copy
+import glob
+import random
 
 class HelpCommandWithSubcommands(DefaultHelpCommand):
 
@@ -106,6 +108,7 @@ class TestCog(commands.Cog):
         except:
             self.bot.all_emoji_counter = dict()
         self.bot.apscheduler.add_job(self.emoji_counter_all_channel_update, trigger="cron",minute="0",hour="1",replace_existing=True,id="emoji_counter_all_channel_update", jobstore="default")
+        self.bot.apscheduler.add_job(self.idol_change_update, trigger="cron",minute="0",hour="*",replace_existing=True,id="idol_change_update", jobstore="default")
 
     def cog_unload(self):
         self.bot.help_command = self._original_help_command
@@ -377,6 +380,54 @@ class TestCog(commands.Cog):
         emoji_list_chunks = self.chunks(emoji_list, 30)
         for emoji_list in emoji_list_chunks:
             await ctx.send(" ".join(emoji_list))
+
+    async def idol_change_update(self):
+        await self.idol_change_function(None, None)
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    @commands.cooldown(1,3600)
+    async def idol_change(self, ctx, idol:str=None):
+        await self.idol_change_function(ctx, idol)
+
+    async def idol_change_function(self, ctx, idol):
+        if ctx is None:
+            guild_id = "326048564965015552"
+            ctx = self.bot.get_channel(457801818144243716)
+        else:
+            guild_id = str(ctx.guild.id)
+        guild = self.bot.get_guild(int(guild_id))
+        idol_dict = {
+            "aoi":"Aoi-Chan ⭐",
+            "ako":"Ako-Nyan 😹",
+            "yume":"Yume-Chan 🌈",
+            "yurika":"Yurika-Sama 🦇",
+            "mirai":"Mirai-Chan ⭐",
+            "ema":"Ema-Chan ⭐",
+            "mio":"Mio-Chan ⭐",
+            "akari":"Akari-Chan ⭐",
+            "rei":"Rei-Chan ⚔"
+        } 
+        if idol:
+            if idol not in idol_dict:
+                await ctx.send("Idol not found")
+                return
+        else:
+            idol = random.choice(list(idol_dict.keys()))
+        file_list = glob.glob("pfp/"+idol+"*")
+        if len(file_list) == 0:
+            await ctx.send("Idol not found")
+            return
+        else:
+            filename = random.choice(file_list)
+            with open(filename, "rb") as file:
+                binarybytes = file.read()
+            await ctx.send(f"Trying to change idol username and pfp to {idol}")
+            await self.bot.user.edit(username=idol_dict[idol], avatar=binarybytes)
+            await guild.me.edit(nick=idol_dict[idol])
+            await ctx.send(filename)
+            await ctx.send("Change complete")
+
 
 def setup(bot):
     #bot.remove_command("help")
