@@ -631,7 +631,7 @@ class AikatsuCog(commands.Cog):
     @commands.command()
     async def next_episode(self, ctx, anime : str = "aikatsu"):
         anime_dict = dict()
-        anime_dict["aikatsu"] = {"day":3, "hour":18, "minute":25}
+        anime_dict["aikatsu"] = {"day":5, "hour":10, "minute":30}
         anime_dict["prichan"] = {"day":6, "hour":10, "minute":00}
         anime_dict["precure"] = {"day":6, "hour":8, "minute":30}
         anime = anime.casefold()
@@ -647,7 +647,7 @@ class AikatsuCog(commands.Cog):
         next_aikatsu_datetime = (current_time + weekday_delta).replace(hour=anime_dict[anime]["hour"],minute=anime_dict[anime]["minute"],second=0)
         airing = False
 
-        if self.airtime_datetime is not None:
+        if self.airtime_datetime is not None and anime == "aikatsu":
             if self.airtime_datetime > current_time:
                 next_aikatsu_datetime = self.airtime_datetime
 

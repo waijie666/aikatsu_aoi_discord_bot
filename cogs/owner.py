@@ -1,4 +1,5 @@
 from discord.ext import commands
+import discord
 import sys, traceback
 
 
@@ -51,6 +52,20 @@ class OwnerCog(commands.Cog):
 
     def cog_unload(self):
         pass
+
+    #bans a user with a reason
+    @commands.command(hidden=True)
+    @commands.has_any_role("S4","Class Admin")
+    async def ban (self, ctx, member:discord.User=None, reason=None):
+        if member == None or member == ctx.message.author:
+            await ctx.channel.send("You cannot ban yourself")
+            return
+        if reason == None:
+            reason = "For being a jerk!"
+        #message = f"You have been banned from {ctx.guild.name} for {reason}"
+        #await member.send(message)
+        await ctx.guild.ban(member, reason=reason)
+        await ctx.channel.send(f"{member} is banned!")
 
 def setup(bot):
     bot.add_cog(OwnerCog(bot))

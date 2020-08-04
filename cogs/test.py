@@ -198,6 +198,16 @@ class TestCog(commands.Cog):
     async def bigemoji_error_handler(self, ctx, error):
         await ctx.send("Need valid Discord Custom Emoji")
 
+    @commands.command()
+    async def bigemoji_orig(self, ctx, emoji : discord.PartialEmoji ):
+        embed = discord.Embed(title="Click for image link", url=str(emoji.url))
+        embed.set_image(url=str(emoji.url))
+        await ctx.send(embed=embed)
+    
+    @bigemoji_orig.error
+    async def bigemoji_orig_error_handler(self, ctx, error):
+        await ctx.send("Need valid Discord Custom Emoji")
+
     @commands.command(hidden=True)
     @commands.is_owner()
     async def read_message(self, ctx, channel : discord.TextChannel ):
@@ -312,6 +322,7 @@ class TestCog(commands.Cog):
         local_timezone = datetime.now().astimezone().tzinfo
         emoji_counter_updated_time = datetime.fromtimestamp(self.bot.all_emoji_counter[guild_id]["all_channel"]["updated_time"], tz=local_timezone)
         embed = discord.Embed(title="Emoji counter", timestamp=emoji_counter_updated_time)
+        embed.set_footer(text="Last updated")
         if channel is None and member is None and emoji is None:
             emoji_counter_sorted = Counter(self.bot.all_emoji_counter[guild_id]["all_channel"]["count"]).most_common()
             embed.add_field(name="Channel",value="All channels", inline=False)
@@ -346,18 +357,24 @@ class TestCog(commands.Cog):
                     emoji_counter_sorted.pop(count)
             embed.add_field(name="Total Count", value=str(sum(emoji_tuple[1] for emoji_tuple in emoji_counter_sorted)), inline=False)
             
-        emoji_counter_chunks = self.chunks(emoji_counter_sorted, 20)
-        for chunk in emoji_counter_chunks:
-            try:
-                if emoji is None:
-                    emoji_counter_string = "\n".join([ str(self.bot.get_emoji(int(emoji_tuple[0]))) +" "+str(emoji_tuple[1]) for emoji_tuple in chunk ])
-                else:
-                    emoji_counter_string = "\n".join([ str(emoji_tuple[0])+" **"+str(emoji_tuple[1])+"**" for emoji_tuple in chunk ])
-                embed.add_field(name="Count",value=emoji_counter_string)
-            except:
-                pass
-        embed.set_footer(text="Last updated")
-        await ctx.send(embed=embed)
+        emoji_counter_chunks = list(self.chunks(emoji_counter_sorted, 21))
+        #Embed might get too long, splitting the embed
+        emoji_counter_chunks_split = self.chunks(emoji_counter_chunks, 6)
+        embed_list = list()
+        for emoji_counter_chunks in emoji_counter_chunks_split:
+            embed_copy = copy.deepcopy(embed)
+            for chunk in emoji_counter_chunks:
+                try:
+                    if emoji is None:
+                        emoji_counter_string = "\n".join([ str(self.bot.get_emoji(int(emoji_tuple[0]))) +" "+str(emoji_tuple[1]) for emoji_tuple in chunk ])
+                    else:
+                        emoji_counter_string = "\n".join([ str(emoji_tuple[0])+" **"+str(emoji_tuple[1])+"**" for emoji_tuple in chunk ])
+                    embed_copy.add_field(name="Count",value=emoji_counter_string)
+                except:
+                    pass
+            embed_list.append(embed_copy)
+        for embed_send in embed_list:
+            await ctx.send(embed=embed_send)
 
     @commands.command(hidden=True)
     @commands.is_owner()
