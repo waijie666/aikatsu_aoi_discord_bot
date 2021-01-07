@@ -631,7 +631,7 @@ class AikatsuCog(commands.Cog):
     @commands.command()
     async def next_episode(self, ctx, anime : str = "aikatsu"):
         anime_dict = dict()
-        anime_dict["aikatsu"] = {"day":5, "hour":10, "minute":30}
+        anime_dict["aikatsu"] = {"day":6, "hour":7, "minute":00}
         anime_dict["prichan"] = {"day":6, "hour":10, "minute":00}
         anime_dict["precure"] = {"day":6, "hour":8, "minute":30}
         anime = anime.casefold()
