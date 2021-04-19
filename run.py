@@ -5,6 +5,7 @@ import json
 import discord
 import aiohttp
 import logging
+import logging.handlers
 import pytz
 from discord.ext import commands
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -15,22 +16,38 @@ import concurrent.futures
 
 # Logging config
 
-format = "%(asctime)s:%(name)s.%(levelname)s:%(message)s"
-logging.basicConfig(level=logging.INFO, format=format)
+def init_logger(debug=False):
+    if not os.path.isdir("logs"):
+        os.mkdir("logs")
 
-#logger = logging.getLogger('discord')
-#logger.setLevel(logging.DEBUG)
+    script_name = os.path.basename(__file__)
+    logpath = f"logs/{script_name}.log"
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+    
+    consoleHandler = logging.StreamHandler(sys.stdout)
+    consoleHandler.setFormatter(formatter)
+    
+    rotatingFileHandler = logging.handlers.TimedRotatingFileHandler(filename=logpath, when='midnight', backupCount=30)
+    rotatingFileHandler.suffix = "%Y%m%d"
+    rotatingFileHandler.setFormatter(formatter)
 
-class NoRunningFilter(logging.Filter):
-    def filter(self, record):
-        if "change_client_presence" in record.getMessage():
-            return False
-        else:
-            return True
+    handlers = [consoleHandler,rotatingFileHandler]
+    
+    if debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+    logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s', level=log_level, handlers=handlers)
 
+    class NoRunningFilter(logging.Filter):
+        def filter(self, record):
+            if "change_client_presence" in record.getMessage():
+                return False
+            else:
+                return True
 
-my_filter = NoRunningFilter()
-logging.getLogger("apscheduler.executors.default").addFilter(my_filter)
+    my_filter = NoRunningFilter()
+    logging.getLogger("apscheduler.executors.default").addFilter(my_filter)
 
 # Initial bot initialization
 
@@ -40,6 +57,14 @@ cogs_dir = "cogs"
 command_prefix = "!!!"
 bot = commands.Bot(command_prefix=command_prefix, case_insensitive=True)
 bot.first_startup = False
+init_logger()
+logger = logging.getLogger(__name__)
+bot.logger = logger
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+sys.excepthook = handle_exception
 
 # Scheduler related intialization and functions
 
@@ -71,7 +96,6 @@ bot.apscheduler.add_job(
 async def message_send(channel_id, message):
     await bot.get_channel(channel_id).send(message)
 
-
 @bot.command(name="list_job", hidden=True)
 @commands.is_owner()
 async def listjob(ctx):
@@ -80,7 +104,6 @@ async def listjob(ctx):
             "name: %s, trigger: %s, next run: %s"
             % (job.name, job.trigger, job.next_run_time)
         )
-
 
 @bot.command(name="schedule_message", hidden=True)
 @commands.is_owner()
@@ -98,10 +121,9 @@ async def schedule_message(
 
 @bot.event
 async def on_ready():
-    print("Logged in as")
-    print(bot.user.name)
-    print(bot.user.id)
-    print("------")
+    logger.info("Logged in as")
+    logger.info(bot.user.name)
+    logger.info(bot.user.id)
     if bot.first_startup is False:
         bot.clientsession = aiohttp.ClientSession()
         bot.apscheduler.start()
@@ -128,8 +150,8 @@ if __name__ == "__main__":
     ]:
         try:
             bot.load_extension(cogs_dir + "." + extension)
-        except (discord.ClientException, ModuleNotFoundError):
-            print(f"Failed to load extension {extension}.")
-            traceback.print_exc()
+            logger.info(f"Loaded cogs {cogs_dir}.{extension}")
+        except (discord.ClientException, ModuleNotFoundError) as e:
+            logger.exception(f"Failed to load extension {extension}.")
 
-bot.run(API_KEY)
+    bot.run(API_KEY)
