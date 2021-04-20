@@ -16,9 +16,12 @@ Run pipenv.
 ```
 $ pipenv install
 ```
-And then, edit `.env` to set your app token.
+And then, edit `.env` to set your app token and s3 object storage configuration(for screenshots0)
 ```
 API_KEY={YOUR_APP_TOKEN}
+s3_endpoint_url = 
+s3_access_key = 
+s3_secret_key = 
 ```
 See: [Creating a discord bot & getting a token](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token)
 
