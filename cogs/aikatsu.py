@@ -16,6 +16,8 @@ import re
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
+import os
+import boto3
 
 class LString:
     def __init__(self):
@@ -45,13 +47,62 @@ class AikatsuCog(commands.Cog):
         self.init_aikatsu_idol()
         self.init_aikatsu_markov()
         try:
-            self.init_aikatsu_stars_screenshots()
-            self.init_aikatsu_screenshots()
-            self.init_aikatsu_friends_screenshots()
-        except:
-            print("Screenshot initialization failed. Screenshots may not work in this environment")
+            self.init_boto3()
+            self.init_aikatsu_screenshots_s3()
+            #self.init_aikatsu_stars_screenshots()
+            #self.init_aikatsu_screenshots()
+            #self.init_aikatsu_friends_screenshots()
+        except Exception as e:
+            self.bot.logger.exception(e)
+            self.bot.logger.error("Screenshot initialization failed. Screenshots may not work in this environment")
         self.bot.process_executor = concurrent.futures.ProcessPoolExecutor(max_workers=3)
 
+    def init_boto3(self):
+        s3_endpoint_url = os.environ.get("s3_endpoint_url")
+        s3_access_key = os.environ.get("s3_access_key")
+        s3_secret_key = os.environ.get("s3_secret_key")
+
+        self.s3_client = boto3.client(service_name="s3", endpoint_url=s3_endpoint_url, aws_access_key_id=s3_access_key, aws_secret_access_key=s3_secret_key)
+
+    def init_aikatsu_screenshots_s3(self):
+        self.aikatsu_screenshot_dict = {"multiplier":5, "title":"Aikatsu Screenshot"}
+        self.aistars_screenshot_dict = {"multiplier":5, "title":"Aikatsu Stars Screenshot"}
+        self.aifure_screenshot_dict = {"multiplier":5, "title":"Aikatsu Friends Screenshot"}
+        
+        with open("s3_aikatsu_screenshot.txt","r") as f:
+            fullstring = f.read()
+            lines = fullstring.split("\n")
+            for line in lines:
+                filename_split = line.split("/")
+                if len(filename_split) < 2:
+                    continue
+                episode_and_framenumber = filename_split[1].split("screenshot")
+                if len(episode_and_framenumber) < 2:
+                    continue
+                episode = str(int(episode_and_framenumber[0]))
+                frame_number = int(episode_and_framenumber[1].split(".")[0])
+                full_filename = line
+                filename = filename_split[1]
+                if filename_split[0] == "aikatsu_screenshot":
+                    screenshot_dict = self.aikatsu_screenshot_dict
+                elif filename_split[0] == "aikatsu_stars_screenshot":
+                    screenshot_dict = self.aistars_screenshot_dict
+                elif filename_split[0] == "aikatsu_friends_screenshot":
+                    screenshot_dict = self.aifure_screenshot_dict
+                if episode not in screenshot_dict:
+                    screenshot_dict[episode] = list()
+                screenshot_dict[episode].append({"full_filename":full_filename, "filename":filename, "frame_number": frame_number, "web_url": "https://images.dream-wonderland.com/" + full_filename})
+
+        #self.bot.logger.info(str(self.aikatsu_screenshot_dict))
+        #self.bot.logger.info(str(self.aistars_screenshot_dict))
+        #self.bot.logger.info(str(self.aifure_screenshot_dict))
+
+    def get_aikatsu_screenshot_from_s3(self, filename):
+        file_object = BytesIO()
+        self.s3_client.download_fileobj("images.dream-wonderland.com", filename, file_object)
+        file_object.seek(0)
+        return file_object    
+ 
     def init_aikatsu_stars_screenshots(self):
         self.aistars_screenshot_dict = {"multiplier":1, "title":"Aikatsu Stars Screenshot"}
         
@@ -810,11 +861,10 @@ class AikatsuCog(commands.Cog):
         minutes, seconds = divmod(frame_number_index, 60)
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
-        with open(full_filename, "rb") as f:
-            jpg_data = BytesIO(f.read())
-            discord_file = discord.File(jpg_data,filename)
-            await ctx.send(file=discord_file)
-            await ctx.send(embed=embed)
+        jpg_data = self.get_aikatsu_screenshot_from_s3(full_filename)
+        discord_file = discord.File(jpg_data,filename)
+        await ctx.send(file=discord_file)
+        await ctx.send(embed=embed)
 
     @commands.command()
     async def aikatsu_screenshot(self, ctx, episode: int=0):
@@ -829,11 +879,10 @@ class AikatsuCog(commands.Cog):
         minutes, seconds = divmod(frame_number_index*5, 60)
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
-        with open(full_filename, "rb") as f:
-            jpg_data = BytesIO(f.read())
-            discord_file = discord.File(jpg_data,filename)
-            await ctx.send(file=discord_file)
-            await ctx.send(embed=embed)
+        jpg_data = self.get_aikatsu_screenshot_from_s3(full_filename)
+        discord_file = discord.File(jpg_data,filename)
+        await ctx.send(file=discord_file)
+        await ctx.send(embed=embed)
 
     @commands.command()
     async def aikatsu_friends_screenshot(self, ctx, episode: int=0):
@@ -848,11 +897,10 @@ class AikatsuCog(commands.Cog):
         minutes, seconds = divmod(frame_number_index*5, 60)
         embed.add_field(name="Episode", value=episode)
         embed.add_field(name="Time", value=f"{minutes:02d}:{seconds:02d}")
-        with open(full_filename, "rb") as f:
-            jpg_data = BytesIO(f.read())
-            discord_file = discord.File(jpg_data,filename)
-            await ctx.send(file=discord_file)
-            await ctx.send(embed=embed)
+        jpg_data = self.get_aikatsu_screenshot_from_s3(full_filename)
+        discord_file = discord.File(jpg_data,filename)
+        await ctx.send(file=discord_file)
+        await ctx.send(embed=embed)
     
     @commands.command()
     async def aikatsu_meme_generate(self, ctx, word_length : int = 15, choice=None):
@@ -903,10 +951,11 @@ class AikatsuCog(commands.Cog):
 
         fillcolor = "white"
         shadowcolor = "black"
-        with open(full_filename, "rb") as f:
-            jpg_data = f.read()
-            file_object = BytesIO(jpg_data)
-            image = Image.open(file_object)
+        with self.get_aikatsu_screenshot_from_s3(full_filename) as f:
+            #jpg_data = f.read()
+            #file_object = BytesIO(jpg_data)
+            #image = Image.open(file_object)
+            image = Image.open(f)
             width, height = image.size
             draw = ImageDraw.Draw(image)
             font = ImageFont.truetype('/usr/share/fonts/truetype/NotoSansCJKjp-Black.otf', 21)
@@ -962,7 +1011,7 @@ class AikatsuCog(commands.Cog):
                 count = 1
                 current_horizontal_position = 0 
                 current_vertical_position += 360
-            with Image.open(screenshot["full_filename"]) as image:
+            with Image.open(self.get_aikatsu_screenshot_from_s3(screenshot["full_filename"])) as image:
                 result.paste(im=image, box=(current_horizontal_position, current_vertical_position))
             current_horizontal_position += 640
           
