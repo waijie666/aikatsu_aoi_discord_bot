@@ -137,6 +137,12 @@ async def on_message(message):
         return
     await bot.process_commands(message)
 
+@bot.event
+async def on_command_error(ctx, error):
+    logger.error(f"Failed command: {ctx.message}")
+    logger.error(f"{ctx.message.content}")
+    tb_str = "".join(traceback.format_exception(etype=type(error), value=error, tb=error.__traceback__))
+    logger.error(tb_str)
 
 @bot.command(name="list_extension", hidden=True)
 @commands.is_owner()
