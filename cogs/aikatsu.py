@@ -820,7 +820,7 @@ class AikatsuCog(commands.Cog):
                 )
                 if random.choice([True, False]):
                     await asyncio.sleep(3)
-                    await message.edit(content=message_content, embed=discord.Embed())
+                    await message.edit(content=message_content, embed=discord.Embed(description="I will keep singing!!!"))
                     await self.lastfallmessage.add_reaction(
                         self.bot.get_emoji(485997782344138772)
                     )
